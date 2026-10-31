@@ -114,7 +114,9 @@ def read_txt(data: bytes) -> dict:
 
 
 def extract(data: bytes, mime: str, name: str) -> dict:
-    if not 0 < len(data) <= MAX_BYTES:
+    if not data:
+        raise DocError("the file is empty")
+    if len(data) > MAX_BYTES:
         raise DocError("files must be under 10 MB")
     k = kind_of(mime, name)
     if not k:

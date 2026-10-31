@@ -1,0 +1,1 @@
+SEA-RAN-004 S1: RET readback 2.0 deg vs 6.0 configured. Mech tilt 0. No event or crowd nearby. Antenna overshooting.

@@ -88,6 +88,8 @@ whether it fits the diagnosis. Each file becomes its own evidence item (`field_d
 "fits diagnosis" chip as soon as it is attached. Without a key, a keyword rule fills in. `py scripts\check_field_files.py` checks
 every file type live with your key (add `--file your.pdf` to try your own).
 
+Sample files for every fault, including files that should be refused, are in `samples/field_evidence/`.
+
 The answer and all files attached since the request become a `field_report` evidence item, and the investigation resumes with
 everything gathered so far. An on-site finding that backs the leading cause can stand in for its confirming check, and the
 verifier says so ("stood in for by the field report"). The field is asked once; a second dead end goes to a person.

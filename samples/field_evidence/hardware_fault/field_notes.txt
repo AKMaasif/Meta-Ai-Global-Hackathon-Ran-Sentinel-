@@ -1,0 +1,1 @@
+SEA-RAN-015 ANT1 VSWR 2.4, corroded jumper connector with water ingress. UL noise floor normal, no interference.

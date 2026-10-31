@@ -1,0 +1,6 @@
+time,cell,sector,planned_etilt_deg,configured_etilt_deg,readback_etilt_deg,mech_tilt_deg,ret_alarm
+10:10,SEA-RAN-004,1,6.0,6.0,2.0,0.0,none
+10:12,SEA-RAN-004,1,6.0,6.0,2.0,0.0,none
+10:14,SEA-RAN-004,1,6.0,6.0,2.0,0.0,none
+10:16,SEA-RAN-004,1,6.0,6.0,2.0,0.0,none
+10:18,SEA-RAN-004,1,6.0,6.0,2.0,0.0,none
