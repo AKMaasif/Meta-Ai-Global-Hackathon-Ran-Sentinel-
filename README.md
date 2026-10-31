@@ -27,6 +27,75 @@ What's built for the US market:
 - **Real neighborhoods and ZIP codes.** Customers can check a ZIP code, and the assistant understands one too ("Is there an issue in 98101?").
 - **Times in Pacific time.**
 
+## Why it matters: industry impact and business case
+
+Mobile networks are run by small teams watching very large numbers of cells. When one cell degrades, an engineer still gathers the evidence by hand, decides the cause and pushes a configuration change, and a wrong change can take down far more than the cell it was meant to fix. RAN Sentinel automates the gathering and the first diagnosis, proves every change safe with fixed rules and an RF twin, and leaves the decision with the engineer.
+
+| | | |
+|---|---|---|
+| **$1.08T** mobile operator revenue in 2024 ([GSMA](https://gsma.com/solutions-and-impact/connectivity-for-good/mobile-economy/wp-content/uploads/2025/02/ME_2025_Infographic.pdf)) | **15–30%** lower network opex that operators report from AI operations ([McKinsey, 2026](https://www.mckinsey.com/industries/technology-media-and-telecommunications/our-insights/issue-brief-ai-driven-telecom-networks)) | **$7.0B** SON / RAN automation software market in 2025 ([IMARC](https://imarcgroup.com/self-organizing-network-market)) |
+| **92 million** calls blocked by one AT&T configuration error, Feb 2024 ([FCC via Fierce](https://fierce-network.com/wireless/fcc-reports-atts-nationwide-outage-february)) | **48 / 48** simulated faults detected, 0 false alarms *(measured here)* | **11 / 11** incidents diagnosed correctly by live Muse Spark agents *(measured here)* |
+
+### The problems it addresses
+
+| Industry problem | What operators do today | What RAN Sentinel does | Evidence |
+|---|---|---|---|
+| Manual fault triage | Engineer correlates dashboards, alarms and config for each cell | Three detectors; Muse Spark agents gather cited evidence with read-only tools; a verifier checks every number | 11/11 correct live, no wrong diagnosis verified |
+| Missed gradual faults | Static threshold alarms | Rules + Isolation Forest + per-cell, per-hour baseline | 100% vs 79% detection (chart below) |
+| Risky configuration changes | Manual procedure and peer review; AT&T 2024 and Optus 2023 outages began with a change | Nine fixed safety rules, Maveric what-if, mandatory approval, confirmed-commit rollback | Built and tested |
+| Outage cost and reporting | User-minutes compiled after the event | Live FCC Part 4 tracking with the 120-minute, 72-hour and 30-day deadlines | Built and tested |
+| Customers left uninformed | Generic status pages and care calls | Confirmed plain-language updates, recovery estimate, reports straight into the NOC, voice agent | Built; impact to be measured in a pilot |
+| Small operators can't build AI ops | Vendor-tied SON or nothing | Vendor-neutral, open interfaces (Open M-Plane, Maveric), laptop-scale models, no labels needed | Design choice |
+
+### Compared with the methods operators use today
+
+![Detection compared with common methods](docs/img/impact-detection.svg)
+
+*Measured in this project. Panel A: our 36-cell simulator (48 injected faults). Panel B: the open TelecomTS 5G dataset, with the detector chosen on a validation split, never on test.*
+
+![What operators report from AI-driven network operations](docs/img/impact-industry.svg)
+
+*Industry figures from McKinsey (2026). They show the size of the prize, not RAN Sentinel results.*
+
+### Why network quality is a business problem
+
+![Churn and network experience](docs/img/impact-churn.svg)
+
+US postpaid phone churn is 0.86–0.92% a month at the national carriers ([Recon Analytics, Jul 2026](https://www.lightreading.com/wireless/each-carrier-nailed-its-q2-plan-but-buried-the-number-that-shows-the-cost)), and users with the least consistent service are 19% more likely to switch ([Opensignal](https://insights.opensignal.com/2025/04/28/retention-starts-with-reception-how-mobile-network-experience-drives-churn-in-australia/dt)). Heavy Reading's survey of 54 operators put outage costs at 1–5% of revenue (2016, the latest public survey we found).
+
+### Market size
+
+![Global telecom market](docs/img/impact-market.svg)
+
+![AI in telecom market estimates](docs/img/impact-ai-market.svg)
+
+Research firms disagree widely on "AI in telecom" ($11–45B at the end of their forecasts) because they define it differently. We size the opportunity on the narrower, more conservative SON software market.
+
+![TAM SAM SOM](docs/img/impact-tam-sam-som.svg)
+
+*TAM is sourced. SAM (20% of TAM: mid-size, regional and multi-vendor operators without in-house AI teams) and SOM are our assumptions. Bottom-up check: 40 operators × 13,500 cells × $1.50 per cell per month = $9.7M a year.*
+
+### Return on investment for an operator (illustrative)
+
+![ROI scenarios](docs/img/impact-roi.svg)
+
+| Per year, carrier with 13,500 cells | Conservative | Base | Best |
+|---|---:|---:|---:|
+| Running cost (subscription, hosting, model API) | $271,562 | $274,300 | $277,950 |
+| Engineer time saved | $153,984 | $410,625 | $739,125 |
+| Retention value | $0 | $155,520 | $311,040 |
+| **Net annual benefit** | **−$117,578** | **$291,845** | **$772,215** |
+| Payback | does not pay back | 4.1 months | 1.2 months |
+| 3-year ROI | −52% | +84% | +247% |
+
+Every input is an assumption to be replaced with pilot data (incidents per day, time saved, churn effect, implementation cost). The conservative case does not pay back: the product makes sense where incident volume is high enough, and a pilot has to establish that. Full assumptions and formulas are in the PDF.
+
+### Where it fits
+
+RAN Sentinel is not a replacement for a vendor's SON or an operator's OSS. Large vendors and operators already ship agentic RAN tools ([Ericsson](https://www.ericsson.com/en/press-releases/2026/2/ericsson-launches-agentic-rapp-as-a-service-on-aws-to-accelerate-autonomous-networks-transformation), [Nokia MantaRay](https://www.globenewswire.com/news-release/2025/11/25/3194000/0/en/Nokia-introduces-MantaRay-SON-to-NTT-DOCOMO-s-multi-vendor-5G-network.html), [Deutsche Telekom](https://www.telekom.com/en/newsroom/latest-updates/media-information/2025/2/agentic-ai-for-autonomous-networks)), tied to their own stacks or not for sale. RAN Sentinel is a vendor-neutral co-engineer for the operators that cannot build their own AI operations: regional and rural carriers and mid-size operators in multi-vendor networks, including emerging markets. Its safety layer is code, not a model.
+
+**The full research chapter**, with 25 sources, the customer-experience analysis, the competitor comparison, a four-phase rollout plan and the risks, is Part A of the [technical documentation PDF](docs/RAN_Sentinel_Technical_Documentation.pdf).
+
 ## Documentation
 
 | Document | What it covers |
