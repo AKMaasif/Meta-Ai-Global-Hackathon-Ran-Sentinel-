@@ -12,12 +12,12 @@ RAN Sentinel is a local demo, not a production service. This document states wha
 | --- | --- | --- |
 | Sign-in | Implemented | `POST /api/login` with `{email, password, portal}`. One account per portal from `.env`: `OPS_EMAIL` / `OPS_PASSWORD` and `CUSTOMER_EMAIL` / `CUSTOMER_PASSWORD`. Compared with `secrets.compare_digest` (`main._matches`). |
 | Wrong portal | Implemented | Right credentials on the wrong sign-in page return `403` with a pointer to the right app, never a session (tested in `tests/test_login.py`). |
-| Session token | Implemented | `secrets.token_urlsafe(24)`, stored in the in-memory `sessions` dict, sent as cookie `rs_ops` or `rs_connect` with `HttpOnly` and `SameSite=Lax`. |
+| Session token | Implemented | `secrets.token_urlsafe(24)`, stored in the in-memory `sessions` dict with its portal (a customer token in the ops cookie, or the reverse, gets 401; tested), sent as cookie `rs_ops` or `rs_connect` with `HttpOnly` and `SameSite=Lax`. |
 | Logout | Implemented | `POST /api/logout` removes both sessions and cookies. |
 | Session expiry | Missing | Sessions last until logout or server restart. |
 | Secure cookie flag | Missing | Not set, because the app is served over plain HTTP on 127.0.0.1. Must be added if the app is ever served over HTTPS. |
 | Password storage | Partial | Plain values from `.env`, not hashes. `config.py` has built-in demo defaults if `.env` does not set them, so set your own before sharing a demo. |
-| Rate limiting or lockout | Missing | — |
+| Rate limiting or lockout | Implemented | 5 wrong passwords from one address lock sign-in for 5 minutes (`429`). In memory, per client address (tested in `tests/test_security.py`). |
 | CSRF protection | Partial | Only `SameSite=Lax` and JSON bodies; there are no CSRF tokens. |
 
 ## 2. Authorization
@@ -67,6 +67,12 @@ The **ops map** uses `/api/state`, which needs the ops session, and shows every 
 - **Uploads:**
   - Photos must be JPEG, PNG or WebP, between 1 byte and 6 MB.
   - Voice must be a WAV with a RIFF/WAVE header, at most 30 MB.
+  - Photos are also checked by their first bytes, so a file labelled JPEG must really be one.
+  - Field documents (CSV, PDF, DOCX, TXT) are at most 10 MB. A DOCX whose text part unpacks to over 20 MB (zip bomb) or that
+    contains a DTD (billion laughs, XXE) is refused. The file name is reduced to its last part without control or quote
+    characters, and the file is served back as a download with a fixed content type and `nosniff`.
+- **Response headers:** every response has `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` and
+  `Referrer-Policy: same-origin`.
 - **Bad input from the browser:** a `ValueError` from the domain code is mapped to 400 with a plain message, and unknown ids get 404.
 - **Model failures:** a model failure never crashes a request. Every agent has a fallback, and the investigation escalates on any unexpected exception (`run_investigation`).
 - **Customer text:** customer free text (questions, report details) is trimmed to 500 characters for Concierge questions and history (`Care.concierge`). It is passed to the model as a user message; there is no separate injection filter on input, only the `FORBIDDEN` filter on output.
@@ -79,8 +85,26 @@ The **ops map** uses `/api/state`, which needs the ops session, and shows every 
 
 ## 7. Known gaps (summary)
 
-- **Accounts:** one account per role, no hashing, no expiry, no lockout and no CSRF tokens. The decision "user" field is trusted.
+- **Accounts:** one account per role, no hashing, no expiry and no CSRF tokens. The decision "user" field is trusted.
 - **Transport:** no HTTPS or Secure cookie. The app binds to 127.0.0.1 only (`run.py`); do not expose it on a network as is.
 - **Persistence:** sessions and customer-care state are in memory.
 - **Multi-customer isolation:** not testable with one demo subscriber.
 - **Prompt injection:** mitigated by structure (schemas, citations, filters, deterministic safety rules, human approval), not prevented.
+
+## 8. Security test run (2026-10-31)
+
+A live attack run against the app (FastAPI test client, offline engine) made 34 checks: every API route without a session,
+wrong portal, unknown portal, session token swap between portals, cookie flags, 30 wrong passwords, logout, upload path
+traversal, header injection in file names, .exe/.html/.svg uploads, over 10 MB, a GIF labelled JPEG, a 400 MB DOCX zip bomb,
+billion laughs, XXE, a malformed PDF, XSS in file names, a prompt-injection file, unknown ids, static-file traversal to `.env`,
+customer access to evidence upload and approvals, and security headers.
+
+The first run failed 9: a customer session token opened the ops API (and the reverse), an unknown portal name crashed sign-in
+(500), no lockout, file names kept `../` paths, the DOCX zip bomb was read in full, billion laughs and XXE crashed (500), a
+GIF passed as a JPEG, and there were no security headers. All 9 are fixed and covered by `tests/test_security.py`; the re-run
+passed 34 of 34. Bandit found no other issue in the app code, and pip-audit found no known vulnerable dependency. A git
+history scan found no keys (only obvious test placeholders).
+
+Not covered: a prompt-injection file against the live model. The Field Document Analyst is told that file text is data, its
+output is display and evidence only, and it cannot change the network; an engineer who uploads a misleading file can still
+mislead the diagnosis, which is why the safety rules and a human approval come after it.

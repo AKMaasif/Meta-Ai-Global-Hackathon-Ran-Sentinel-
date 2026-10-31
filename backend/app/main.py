@@ -13,6 +13,8 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from typing import Literal
+
 from pydantic import BaseModel
 
 from . import agents, radio
@@ -56,6 +58,9 @@ FRONT = ROOT / "frontend"
 @app.middleware("http")
 async def no_stale_pages(request: Request, call_next):
     response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "same-origin"
     if request.url.path.startswith(("/ops", "/connect", "/shared")) and "/vendor/" not in request.url.path:
         response.headers["Cache-Control"] = "no-cache"
     return response
@@ -74,7 +79,11 @@ def root():
 class Login(BaseModel):
     email: str
     password: str
-    portal: str
+    portal: Literal["ops", "connect"]
+
+
+MAX_FAILED, LOCK_SECONDS = 5, 300
+_failed: dict[str, list[float]] = {}
 
 
 def _matches(body: Login, portal: str) -> bool:
@@ -83,13 +92,20 @@ def _matches(body: Login, portal: str) -> bool:
 
 
 @app.post("/api/login")
-def login(body: Login, response: Response):
+def login(body: Login, request: Request, response: Response):
+    ip = request.client.host if request.client else "?"
+    now = time.monotonic()
+    recent = [t for t in _failed.get(ip, []) if now - t < LOCK_SECONDS]
+    _failed[ip] = recent
+    if len(recent) >= MAX_FAILED:
+        raise HTTPException(429, f"Too many failed sign-ins. Try again in {int(LOCK_SECONDS - (now - recent[0])) + 1} s.")
     if not _matches(body, body.portal):
         other = "connect" if body.portal == "ops" else "ops"
         if _matches(body, other):
             raise HTTPException(403, {"portal": other, "message": (
                 "This is a Northstar Connect customer account. Customers sign in on the customer app."
                 if other == "connect" else "This is an engineer account. Engineers sign in to RAN Sentinel Operations.")})
+        _failed[ip].append(now)
         raise HTTPException(401, "Email or password is incorrect.")
     token = secrets.token_urlsafe(24)
     sessions[token] = {"email": body.email, "portal": body.portal}
@@ -107,14 +123,14 @@ def logout(request: Request, response: Response):
 
 def ops_user(request: Request) -> dict:
     s = sessions.get(request.cookies.get("rs_ops", ""))
-    if not s:
+    if not s or s.get("portal") != "ops":
         raise HTTPException(401, "Sign in to Operations first.")
     return s
 
 
 def customer_user(request: Request) -> dict:
     s = sessions.get(request.cookies.get("rs_connect", ""))
-    if not s:
+    if not s or s.get("portal") != "connect":
         raise HTTPException(401, "Sign in first.")
     return s
 
@@ -319,7 +335,8 @@ def field_file(did: str, _: dict = Depends(ops_user)):
     if did not in sentinel.files:
         raise HTTPException(404, "File not found")
     data, mime, name = sentinel.files[did]
-    return Response(data, media_type=mime, headers={"Content-Disposition": f'attachment; filename="{name.encode("ascii", "ignore").decode().replace(chr(34), "") or did}"'})
+    ascii_name = name.encode("ascii", "ignore").decode() or did
+    return Response(data, media_type=mime, headers={"Content-Disposition": f'attachment; filename="{ascii_name}"'})
 
 
 @app.get("/api/photos/{pid}")

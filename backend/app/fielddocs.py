@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import re
+import unicodedata
 import statistics
 import zipfile
 import xml.etree.ElementTree as ET
@@ -17,11 +18,29 @@ KINDS = {
     "text/plain": "txt",
 }
 EXT = {".csv": "csv", ".pdf": "pdf", ".docx": "docx", ".txt": "txt", ".log": "txt"}
+SERVE_AS = {"csv": "text/csv", "pdf": "application/pdf", "txt": "text/plain",
+            "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+MAX_XML = 20_000_000
+MAGIC = {"image/jpeg": (b"\xff\xd8",), "image/png": (b"\x89PNG\r\n\x1a\n",), "image/webp": (b"RIFF",)}
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
 
 class DocError(ValueError):
     pass
+
+
+def safe_name(name: str) -> str:
+    base = (name or "").replace("\\", "/").rsplit("/", 1)[-1]
+    base = "".join(ch for ch in base if unicodedata.category(ch)[0] != "C" and ch not in '"<>|*?:')
+    return base.strip(" .")[:120] or "file"
+
+
+def check_image(data: bytes, mime: str) -> None:
+    ok = any(data.startswith(m) for m in MAGIC.get(mime, ()))
+    if mime == "image/webp":
+        ok = ok and data[8:12] == b"WEBP"
+    if not ok:
+        raise DocError("the file content is not a JPEG, PNG or WebP image")
 
 
 def kind_of(mime: str, name: str) -> str | None:
@@ -72,10 +91,18 @@ def read_csv(data: bytes) -> dict:
 def read_docx(data: bytes) -> dict:
     try:
         with zipfile.ZipFile(io.BytesIO(data)) as z:
-            xml = z.read("word/document.xml")
-    except (zipfile.BadZipFile, KeyError):
+            info = z.getinfo("word/document.xml")
+            if info.file_size > MAX_XML:
+                raise DocError("the document is too large to read")
+            xml = z.read(info)
+    except (zipfile.BadZipFile, KeyError, RuntimeError, NotImplementedError):
         raise DocError("this is not a readable .docx file")
-    root = ET.fromstring(xml)
+    if b"<!DOCTYPE" in xml[:4096].upper() or b"<!ENTITY" in xml.upper():
+        raise DocError("the document contains a DTD, which is not allowed")
+    try:
+        root = ET.fromstring(xml)
+    except ET.ParseError:
+        raise DocError("this is not a readable .docx file")
     lines, tables = [], 0
     for el in root.iter():
         if el.tag == W + "tbl":

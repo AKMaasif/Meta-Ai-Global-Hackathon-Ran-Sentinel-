@@ -574,6 +574,7 @@ class Sentinel:
             raise ValueError("send a JPEG, PNG or WebP photo")
         if not 0 < len(image) <= 6_000_000:
             raise ValueError("photo must be under 6 MB")
+        fielddocs.check_image(image, mime)
         pid = f"PH-{len(self.photos) + 1:03d}"
         self.photos[pid] = (image, mime)
         cause = ((inc.get("diagnosis") or {}).get("hypotheses") or [{}])[0].get("cause")
@@ -616,12 +617,13 @@ class Sentinel:
         return rec
 
     def add_attachment(self, iid: str, data: bytes, mime: str, name: str, user: str, note: str = "") -> dict:
+        name = fielddocs.safe_name(name)
         if mime in fielddocs.IMAGE_TYPES:
             return {"type": "photo", **self.add_photo(iid, data, mime, user, note)}
         inc = self.incidents[iid]
         doc = fielddocs.extract(data, mime, name)
         did = f"DOC-{len(self.files) + 1:03d}"
-        self.files[did] = (data, mime or "application/octet-stream", name)
+        self.files[did] = (data, fielddocs.SERVE_AS[doc["kind"]], name)
         cause = ((inc.get("diagnosis") or {}).get("hypotheses") or [{}])[0].get("cause")
         rec = {"id": did, "type": "document", "name": name[:120], "kind": doc["kind"], "size": len(data),
                "uploaded": self.sim.now.isoformat(), "by": user, "note": note[:300], "findings": None, "errors": [],

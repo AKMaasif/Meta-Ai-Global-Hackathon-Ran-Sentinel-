@@ -20,7 +20,7 @@ resumes from its last step after an API failure, and an engineer signs off the r
 | Impact (30%) | Cuts the time from a degrading cell to a safe, approved fix for small carrier ops teams; tracks FCC Part 4 duty; keeps customers informed |
 | Use of Meta AI tooling (25%) | Six Meta models, each with one job: Muse Spark 1.3/1.2/1.1, Muse Wonder 1.0, SAM 3.1 and Muse Voice Transcribe 1.0, plus Open M-Plane and Maveric; the investigation follows Meta's legal-agent workshop patterns |
 | Demo (25%) | Live fault injection from the console; red-team, twin outage, diagnostics outage and model outage switches show every safety path; a customer voice agent |
-| Technical depth (20%) | Six layers, five bounded loops, a diagnosis verifier, nine safety rules, checkpoints and resume, NETCONF confirmed-commit with rollback, detector benchmarked on TelecomTS, 129 automated tests |
+| Technical depth (20%) | Six layers, five bounded loops, a diagnosis verifier, nine safety rules, checkpoints and resume, NETCONF confirmed-commit with rollback, detector benchmarked on TelecomTS, 135 automated tests |
 
 What's built for the US market:
 - **FCC Part 4 outage check** (47 CFR 4.9(e)). It tracks user-minutes for every outage and, when a wireless outage passes 30 minutes and 900,000 user-minutes, opens a Regulatory Compliance ticket with the 120-minute, 72-hour and 30-day deadlines. Set `FCC_USERS_PER_SITE` in `.env`. This is decision support, not legal advice.
@@ -246,7 +246,7 @@ After the full investigation, the correct root cause ranked first in 97.9% of si
 python -m pytest -q
 ```
 
-129 tests cover the safety rules, M-Plane rollback, detection (no false alerts on a normal day; every fault detected), all five fault scenarios end to end, and the Muse Spark code path. The Muse Spark tests use a scripted stand-in for the API, covering tool calls, the repair loop, the evidence loop, the customer-text filter, model fallback and full outage. Further tests cover:
+135 tests cover the safety rules, M-Plane rollback, detection (no false alerts on a normal day; every fault detected), all five fault scenarios end to end, and the Muse Spark code path. The Muse Spark tests use a scripted stand-in for the API, covering tool calls, the repair loop, the evidence loop, the customer-text filter, model fallback and full outage. Further tests cover:
 - the FCC check, the ZIP-aware assistant, the reviewer and reporter agents, and the TelecomTS pipeline;
 - the SAM and voice request formats, against a mock HTTP server;
 - photo evidence and the voice-intent hints;

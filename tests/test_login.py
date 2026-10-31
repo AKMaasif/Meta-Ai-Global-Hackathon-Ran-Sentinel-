@@ -1,11 +1,13 @@
 import pytest
-from fastapi import HTTPException, Response
+from fastapi import HTTPException, Request, Response
 
 from app import main
 
 
 def login(email, pw, portal):
-    return main.login(main.Login(email=email, password=pw, portal=portal), Response())
+    main._failed.clear()
+    req = Request({"type": "http", "client": ("test", 0), "headers": []})
+    return main.login(main.Login(email=email, password=pw, portal=portal), req, Response())
 
 
 def test_accounts_sign_in_on_their_own_portal():

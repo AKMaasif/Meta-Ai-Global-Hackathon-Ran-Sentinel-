@@ -184,14 +184,14 @@ def what_if(client: RadpClient, model_id: str, cells: dict, cell_id: str, change
     ids = nearby(cells, cell_id)
     pts = grid(cell)
     ue_csv = _csv([{"lon": radio.to_latlon(x, y)[1], "lat": radio.to_latlon(x, y)[0]} for x, y in pts], ["lon", "lat"])
-    ue_id = "rs-" + hashlib.sha1(ue_csv.encode()).hexdigest()[:12]
+    ue_id = "rs-" + hashlib.sha1(ue_csv.encode(), usedforsecurity=False).hexdigest()[:12]
 
     def run(tilt_of_target: float) -> list[dict]:
         cfg = [{"cell_id": c, "cell_el_deg": tilt_of_target if c == cell_id else cells[c].config.tilt_deg} for c in ids]
         cfg_csv = _csv(cfg, ["cell_id", "cell_el_deg"])
         event = {"simulation_time_interval_seconds": 1, "ue_tracks": {"ue_data_id": ue_id},
                  "rf_prediction": {"model_id": model_id,
-                                   "config_id": "rs-" + hashlib.sha1(cfg_csv.encode()).hexdigest()[:12]}}
+                                   "config_id": "rs-" + hashlib.sha1(cfg_csv.encode(), usedforsecurity=False).hexdigest()[:12]}}
         sid = client.simulate(event, ue_csv, cfg_csv)
         client.wait(sid, timeout)
         return client.output(sid)

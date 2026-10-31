@@ -165,7 +165,7 @@ Benchmarks: `py scripts\benchmark_simulator.py`. For TelecomTS, `pip install hug
 
 ## 9. Verification checklist
 
-- [ ] `python -m pytest -q` reports all tests passed (129 at the time of writing).
+- [ ] `python -m pytest -q` reports all tests passed (135 at the time of writing).
 - [ ] `py scripts\check_meta.py` passes for every model you use.
 - [ ] `py scripts\audit_agents.py` ends with "All agents passed live."
 - [ ] The console shows "Meta Model API" and the clock advances.
