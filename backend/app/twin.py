@@ -6,6 +6,8 @@ import threading
 import httpx
 import numpy as np
 
+from . import maveric
+from .maveric import RadpClient, RadpError
 from .simulator import NetworkSimulator
 
 COVERAGE_LOSS_LIMIT_PCT = 1.0
@@ -69,23 +71,50 @@ class FallbackTwin:
 class MavericTwin:
     name = "Maveric RADP"
 
-    def __init__(self, url: str, fallback: FallbackTwin):
+    def __init__(self, url: str, fallback: FallbackTwin, model_id: str = "ran-sentinel-seattle",
+                 timeout: float = 90.0, client: RadpClient | None = None):
         self.url = url.rstrip("/")
         self.fallback = fallback
+        self.model_id = model_id
+        self.timeout = timeout
+        self.client = client or RadpClient(self.url)
+        self.last_error = ""
 
     def available(self) -> bool:
+        return self.client.reachable()
+
+    def status(self) -> dict:
+        if not self.available():
+            return {"reachable": False, "trained": False}
         try:
-            r = httpx.get(self.url, timeout=2)
-            return r.status_code < 500
-        except httpx.HTTPError:
-            return False
+            return {"reachable": True, "trained": bool(self.client.model_trained(self.model_id)), "model_id": self.model_id}
+        except (RadpError, httpx.HTTPError):
+            return {"reachable": True, "trained": False, "model_id": self.model_id}
 
     def simulate(self, cell_id: str, changes: dict[str, float]) -> dict:
         result = self.fallback.simulate(cell_id, changes)
-        result["engine"] = self.fallback.name + (" (Maveric reachable, adapter pending)" if self.available() else " (Maveric not reachable)")
+        st = self.status()
+        if not st["reachable"]:
+            result["engine"] = self.fallback.name + " (Maveric not reachable)"
+            return result
+        if not st["trained"]:
+            result["engine"] = self.fallback.name + " (Maveric model not trained: run scripts/maveric_setup.py)"
+            return result
+        try:
+            with self.fallback.sim.lock:
+                cells = copy.deepcopy(self.fallback.sim.cells)
+            rf = maveric.what_if(self.client, self.model_id, cells, cell_id, changes, self.timeout)
+        except (RadpError, httpx.HTTPError, KeyError, ValueError, StopIteration) as e:
+            self.last_error = str(e)[:200]
+            result["engine"] = self.fallback.name + f" (Maveric failed: {self.last_error})"
+            return result
+        result["engine"] = "Maveric RF twin (coverage) + simulator copy (load)"
+        # stricter of the two, so maveric never loosens the gate
+        result["coverage_loss_pct"] = max(rf["coverage_loss_pct"], result["coverage_loss_pct"])
+        result["rf"] = rf
         return result
 
 
-def make_twin(sim: NetworkSimulator, maveric_url: str):
+def make_twin(sim: NetworkSimulator, maveric_url: str, model_id: str = "ran-sentinel-seattle", timeout: float = 90.0):
     fb = FallbackTwin(sim)
-    return (MavericTwin(maveric_url, fb) if maveric_url else fb), fb
+    return (MavericTwin(maveric_url, fb, model_id, timeout) if maveric_url else fb), fb

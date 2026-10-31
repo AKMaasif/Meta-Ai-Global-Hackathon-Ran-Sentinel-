@@ -36,7 +36,7 @@ class Sentinel:
         rows = training_rows()
         self.detector = Detector(np.array([features(r) for r in rows]), rows=rows)
         self.mplane = MPlaneClient(self.sim)
-        self.twin, self.fallback_twin = make_twin(self.sim, settings.maveric_url)
+        self.twin, self.fallback_twin = make_twin(self.sim, settings.maveric_url, settings.maveric_model, settings.maveric_timeout)
         self.toolbox = Toolbox(self.sim, self.mplane)
         self.provider = provider or make_provider(settings)
         self.flags = {"red_team": False, "api_outage": "none", "twin_outage": False, "diag_outage": False}

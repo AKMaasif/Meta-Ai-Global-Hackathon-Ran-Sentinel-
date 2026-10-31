@@ -51,7 +51,7 @@ No backend code changed in this task.
 
 | Test | Result | Where it ran |
 | --- | --- | --- |
-| `python -m pytest -q` | **120 passed**, 172 s | cloud copy (Linux), 2026-10-30, after the verified-investigation work |
+| `python -m pytest -q` | **124 passed**, 177 s | cloud copy (Linux), 2026-10-30, after the verified-investigation work |
 | `python -m pytest -q` | **81 passed**, 6 warnings, 198.7 s | cloud copy (Linux), after the frontend changes |
 | `node scripts/check_live_refresh.js` | **12 of 12 PASS** | cloud copy, against a freshly started app with sign-in read from `.env` (2026-10-30). Also checked: clear messages for app not running, missing password, wrong password |
 | `py scripts\audit_agents.py` | **all 15 checks PASS**, "All agents passed live." | your PC with your Meta key, before this task (no agent code changed since) |
@@ -100,6 +100,7 @@ From the work in this project, most recent first:
 
 | Change | Main files |
 | --- | --- |
+| Maveric RF twin wired in: trains on the Seattle cluster, predicts coverage before and after tilt or power changes (MAE 1.26 dB vs the radio model) | `maveric.py`, `twin.py`, `scripts/maveric_setup.py`, [MAVERIC_TWIN.md](MAVERIC_TWIN.md) |
 | Verified investigation from Meta's legal-agent workshop: diagnosis verifier, field-evidence pause and resume, root-cause sign-off, living plan, one tool per turn, checkpoints and resume; investigation eval script; reasoning effort per agent; UL interference threshold fix (mild interference was missed). 120 tests pass | `verify.py`, `workplan.py`, `orchestrator.py`, `agents.py`, `scripts/eval_investigation.py`, [VERIFIED_INVESTIGATION.md](VERIFIED_INVESTIGATION.md) |
 | Customer voice agent: Muse Voice Transcribe + Muse Spark + Gemini TTS, orb UI, instant commands, sentence-by-sentence speech | `care.py`, `providers.py`, `frontend/connect/`, [VOICE_AGENT.md](VOICE_AGENT.md) |
 | Live refresh fix, documentation set, `.gitignore` key-file patterns | this report |

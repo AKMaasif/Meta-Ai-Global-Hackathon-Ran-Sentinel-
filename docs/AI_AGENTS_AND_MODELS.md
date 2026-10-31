@@ -158,7 +158,7 @@ Every step is written to the append-only ledger (`store.log`).
 
 ## 7. Partially implemented or limited
 
-- **Maveric twin:** `twin.MavericTwin` only checks that `MAVERIC_URL` is reachable. What-ifs always use the labelled fallback twin.
+- **Maveric twin:** with `MAVERIC_URL` set and the model trained (`scripts/maveric_setup.py`), `twin.MavericTwin` gets coverage before and after the change from Maveric's RF twin; load comes from the simulator copy. See [MAVERIC_TWIN.md](MAVERIC_TWIN.md).
 - **Real speech:** voice was verified with a generated test tone, which confirms the format. Transcription accuracy on real speech has not been measured.
 - **Antenna photos:** SAM 3.1 returned 0 boxes on the generated test image, which contains no antenna. Detection quality on real site photos has not been measured.
 - **Analyst support labels:** support levels (strong, moderate, weak, none) describe evidence strength. They are not calibrated probabilities.

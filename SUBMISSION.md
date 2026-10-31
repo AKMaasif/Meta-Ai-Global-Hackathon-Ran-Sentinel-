@@ -36,7 +36,7 @@ US regional and rural carriers run the same kind of LTE network as the national 
 
 Every model passed `scripts/check_meta.py` on a real Meta Model API key on 2026-10-28. Agent output is schema-checked, with one repair attempt. Every chat call has a retry and a model fallback chain. Muse Image and the contributor variants are deliberately not used; the reasons are on the Model card page.
 
-Meta open-source telecom work is used as well: Open M-Plane (Linux Foundation) shapes the change packages, and Maveric (lf-connectivity) is the twin adapter.
+Meta open-source telecom work is used as well: Open M-Plane (Linux Foundation) shapes the change packages, and Maveric (lf-connectivity) predicts coverage for every what-if.
 
 ## Technical depth
 
@@ -62,7 +62,7 @@ Open M-Plane and Maveric are referenced, not bundled.
 ## Honest limits
 
 - The network, radio units and customers are simulated, and Northstar Connect is fictional.
-- The twin uses a copy of the simulator. The Maveric adapter only checks that the service is running.
+- The Maveric twin is trained on modelled RSRP, not drive-test data; load effects still come from the simulator copy.
 - Tower sites are fictional; coverage and the customer's signal readings come from a radio model of the simulated network.
 - The FCC check is decision support, not legal advice.
 - No Meta or vendor endorsement is implied.

@@ -31,7 +31,8 @@ ran-sentinel/
     tools.py             read-only Investigator tools
     detection.py         threshold + Isolation Forest + cell baseline detector
     safety.py            the 9 plan rules
-    twin.py              Maveric health check + fallback twin
+    twin.py              Maveric twin + fallback twin
+    maveric.py           Maveric RADP client, training data, what-if
     mplane.py            simulated Open M-Plane radio unit (confirmed-commit, rollback)
     regulatory.py        FCC Part 4 user-minute check
     simulator.py         36-cell Seattle LTE cluster
@@ -96,7 +97,9 @@ Open the operations console at http://127.0.0.1:8000/ops/ and the customer app a
 | `REASONING_EFFORT`, `AGENT_EFFORT` | optional reasoning effort, for every agent or per agent (`analyst=high,voice_agent=minimal`) | empty = model default |
 | `ONE_TOOL_PER_TURN` | investigator runs one tool per model turn (`0` to allow parallel calls) | `1` |
 | `FIREWORKS_API_KEY` | optional last fallback on Muse Spark Open (Fireworks, billed per token) | empty = never called |
-| `MAVERIC_URL` | optional Maveric RADP service (health check only) | empty = fallback twin |
+| `MAVERIC_URL` | optional Maveric RADP service, e.g. http://localhost:8080 ([setup](MAVERIC_TWIN.md)) | empty = fallback twin |
+| `MAVERIC_MODEL` | model trained by `scripts/maveric_setup.py` | `ran-sentinel-seattle` |
+| `MAVERIC_TIMEOUT_SECONDS` | wait per Maveric simulation before falling back | `90` |
 | `FCC_USERS_PER_SITE` | users per macro site for the FCC Part 4 check | 1500 |
 | `SIM_TICK_SECONDS` | real seconds per simulated 15-minute window | 3 |
 | `OPS_EMAIL`, `OPS_PASSWORD` | operations sign-in | demo values; set your own |
@@ -119,7 +122,7 @@ Nothing to set up. `Store` creates `data/sentinel.db` and its tables on first st
 ## 7. Tests
 
 ```powershell
-python -m pytest -q                      # 120 tests, about 3 minutes, no key or network needed
+python -m pytest -q                      # 124 tests, about 3 minutes, no key or network needed
 ```
 
 Live refresh in a real browser. One-time setup, in the project folder:

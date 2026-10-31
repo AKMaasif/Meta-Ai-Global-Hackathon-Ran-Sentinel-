@@ -59,7 +59,7 @@ flowchart LR
         DB[("SQLite\ndata/sentinel.db\nstore.py")]
     end
     META["Meta Model API\napi.meta.ai/v1\n(chat, /responses, /asr/transcribe)"]
-    MAV["Maveric RADP (optional)\nMAVERIC_URL, health check only"]
+    MAV["Maveric RADP (optional)\nMAVERIC_URL, RF coverage what-if"]
     TILES["CARTO / OSM tiles\n(online only)"]
 
     OPS -- "poll GET + POST actions" --> API
@@ -86,7 +86,7 @@ flowchart LR
 | Model provider | `backend/app/providers.py` | `MetaProvider` (Meta Model API: chat completions, SAM 3.1, Voice Transcribe) with retry and fallback chain; `OfflineProvider` when no key |
 | Tools | `backend/app/tools.py` | 5 read-only tools for the Investigator, scoped to the incident cell and its neighbours |
 | Safety | `backend/app/safety.py` | Action allow-list, step and bound limits, cause-to-action fit, evidence citation, rollback, sandbox impact; department routing |
-| Twin | `backend/app/twin.py` | What-if sandbox. `FallbackTwin` (simulator copy) is used; `MavericTwin` only health-checks `MAVERIC_URL` |
+| Twin | `backend/app/twin.py` | What-if sandbox. `MavericTwin` (Maveric RF twin for coverage, `maveric.py`) when `MAVERIC_URL` is set, else `FallbackTwin` (simulator copy) |
 | M-Plane | `backend/app/mplane.py` | NETCONF-style get-config / edit-config / validate / confirmed-commit / rollback against in-process simulated radio units |
 | Regulatory | `backend/app/regulatory.py` | FCC Part 4 (47 CFR 4.9(e)) outage reportability estimate. Decision support, not legal advice |
 | Store | `backend/app/store.py` | SQLite: incidents, append-only ledger, tickets, customer updates |
@@ -251,7 +251,7 @@ Nothing in the app reads real network measurements. `scripts/benchmark_telecomts
 | Maps | Leaflet 1.9.4 (BSD-2), topojson-client 3.1.0 (ISC), us-atlas 3.0.1 states-10m (US Census Bureau, ISC); CARTO light tiles over OpenStreetMap when online | interactive US and cluster maps | bundled in `frontend/shared/vendor`, so state outlines work offline |
 | Fonts | IBM Plex (SIL OFL) | UI type | — |
 | AI provider | Meta Model API (`META_BASE_URL`, default `https://api.meta.ai/v1`) | all model calls | see [AI agents and models](AI_AGENTS_AND_MODELS.md) |
-| Twin (optional) | Maveric RADP (`MAVERIC_URL`) | external what-if engine | only a health check is wired; the fallback twin does the work |
+| Twin (optional) | Maveric RADP (`MAVERIC_URL`) | external what-if engine | coverage before/after a tilt or power change; falls back to the simulator copy if unavailable |
 | Background work | one `threading.Thread` (tick) + `ThreadPoolExecutor(2)` (investigations) | — | no external queue or scheduler |
 | Deployment | local only: `run.py` / `start.bat` on 127.0.0.1:8000 | — | no container, cloud or CI configuration exists in the repository |
 

@@ -37,6 +37,7 @@ What's built for the US market:
 | [API and database](docs/API_AND_DATABASE.md) | every route, request and response, the SQLite schema |
 | [Setup and deployment](docs/SETUP_AND_DEPLOYMENT.md) | install, `.env` settings, health checks, troubleshooting, verification checklist |
 | [Verified investigation](docs/VERIFIED_INVESTIGATION.md) | the verifier, field-evidence pause, living plan, checkpoints and resume, sign-off, and how each maps to Meta's legal-agent workshop |
+| [Maveric RF twin](docs/MAVERIC_TWIN.md) | the what-if on Meta's Maveric RADP: setup with Docker, what it sends, measured accuracy |
 | [Customer voice agent](docs/VOICE_AGENT.md) | the voice pipeline (Muse Voice Transcribe, Muse Spark, Gemini TTS), its tools, safety and speed |
 | [Security and access control](docs/SECURITY_AND_ACCESS_CONTROL.md) | sign-in, roles, customer data limits, secrets, known gaps |
 | [Implementation and test report](docs/IMPLEMENTATION_AND_TEST_REPORT.md) | the live-refresh fix with before/after numbers, test results, change history |
@@ -228,7 +229,7 @@ After the full investigation, the correct root cause ranked first in 97.9% of si
 
 - **Simulated network:** 36 cells in Seattle with a small, explainable KPI model. Northstar Connect is fictional.
 - **TelecomTS vs live data:** TelecomTS validates the detection method on real 5G testbed telemetry: per-UE KPIs every 100 ms. The live demo runs on simulated cell-level KPIs every 15 minutes, because no open dataset offers a cell cluster with config control.
-- **Twin:** the what-if uses a copy of the simulator ("fallback twin"). The Maveric (lf-connectivity/maveric) adapter does a health check only; full RF-prediction calls are still to be wired.
+- **Twin:** with Maveric running, coverage comes from Maveric's RF twin trained on modelled (not drive-test) RSRP; load still comes from the simulator copy. Without it, the labelled fallback twin does both.
 - **Open M-Plane:** XML uses simplified, O-RAN-style element names and goes to an in-process simulated radio unit, not real hardware or the open-mplane C stack.
 - **Meta models:** every model passed `check_meta.py` on a real key (2026-10-28). Voice was checked with a test tone only, so transcription of real speech is not yet measured; try `--audio` with a recorded note.
 - **Maps:** the street basemap needs internet; state outlines are offline. Towers and coverage are modelled, not surveyed.
@@ -244,7 +245,7 @@ After the full investigation, the correct root cause ranked first in 97.9% of si
 python -m pytest -q
 ```
 
-120 tests cover the safety rules, M-Plane rollback, detection (no false alerts on a normal day; every fault detected), all five fault scenarios end to end, and the Muse Spark code path. The Muse Spark tests use a scripted stand-in for the API, covering tool calls, the repair loop, the evidence loop, the customer-text filter, model fallback and full outage. Further tests cover:
+124 tests cover the safety rules, M-Plane rollback, detection (no false alerts on a normal day; every fault detected), all five fault scenarios end to end, and the Muse Spark code path. The Muse Spark tests use a scripted stand-in for the API, covering tool calls, the repair loop, the evidence loop, the customer-text filter, model fallback and full outage. Further tests cover:
 - the FCC check, the ZIP-aware assistant, the reviewer and reporter agents, and the TelecomTS pipeline;
 - the SAM and voice request formats, against a mock HTTP server;
 - photo evidence and the voice-intent hints;

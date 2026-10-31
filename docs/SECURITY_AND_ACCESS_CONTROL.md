@@ -59,7 +59,7 @@ The **ops map** uses `/api/state`, which needs the ops session, and shows every 
 | Key never logged | Implemented | `_record` stores agent, model, ok, latency, usage and error, never the key or prompts. `check_meta.py` and `audit_agents.py` print only the last 4 characters; `audit_agents.redact` removes the key and any long token-like string from error text (tested). |
 | Prompt injection | Partial | Agent prompts append `agents.UNTRUSTED`, which tells the model that tool results, alarm descriptions and KPI data are data, not instructions (also used by the Signal Analyst). Outputs are schema-checked, evidence citations are verified and customer text is filtered. A model could still be misled into a wrong but well-formed diagnosis; that is why the safety rules and a human decision sit after it. |
 | Customer data sent to Meta | Partial | Customer questions go to `ASSISTANT_MODEL` (default `muse-spark-1.3`). The cheaper `-contributor` variants, where Meta may train on inputs, are deliberately not the default (`.env.example`). |
-| Outbound hosts | — | the Meta Model API (`META_BASE_URL`); optional `MAVERIC_URL` (health check); map tiles from `*.basemaps.cartocdn.com`, loaded by the browser. |
+| Outbound hosts | — | the Meta Model API (`META_BASE_URL`); optional `MAVERIC_URL` (RF what-if); map tiles from `*.basemaps.cartocdn.com`, loaded by the browser. |
 
 ## 5. Input validation and error handling
 

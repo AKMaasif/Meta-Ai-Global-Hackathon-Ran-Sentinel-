@@ -16,6 +16,7 @@ data/*.wav
 data/telecomts/
 data/telecomts_features.csv.gz
 data/google_tts_*
+data/maveric/
 
 node_modules/
 package-lock.json

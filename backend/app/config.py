@@ -60,6 +60,8 @@ class Settings:
     max_tokens: int = field(default_factory=lambda: _int("MODEL_MAX_TOKENS", 4000))
     model_timeout: float = field(default_factory=lambda: _float("MODEL_TIMEOUT_SECONDS", 60))
     maveric_url: str = field(default_factory=lambda: os.environ.get("MAVERIC_URL", "").strip())
+    maveric_model: str = field(default_factory=lambda: os.environ.get("MAVERIC_MODEL", "ran-sentinel-seattle").strip())
+    maveric_timeout: float = field(default_factory=lambda: _float("MAVERIC_TIMEOUT_SECONDS", 90))
     tick_seconds: float = field(default_factory=lambda: _float("SIM_TICK_SECONDS", 3))
     ops_email: str = field(default_factory=lambda: os.environ.get("OPS_EMAIL", "ops@northstar.demo"))
     ops_password: str = field(default_factory=lambda: os.environ.get("OPS_PASSWORD", "sentinel-demo"))
