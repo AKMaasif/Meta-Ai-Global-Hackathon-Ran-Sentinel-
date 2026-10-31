@@ -31,6 +31,7 @@ What's built for the US market:
 
 | Document | What it covers |
 |---|---|
+| [Technical documentation (PDF)](docs/RAN_Sentinel_Technical_Documentation.pdf) | Part A: industry problems, market size (TAM/SAM/SOM), customer experience, ROI scenarios, competitors and rollout, with sources; Part B: the technical manual |
 | [System architecture](docs/SYSTEM_ARCHITECTURE.md) | roles, components, runtime model, incident lifecycle, agent loop, data flow, tech stack |
 | [AI agents and models](docs/AI_AGENTS_AND_MODELS.md) | every agent, its model and fallback, tools, limits, what is deterministic |
 | [Live-update architecture](docs/LIVE_UPDATE_ARCHITECTURE.md) | polling, in-place page patching, request handling, the refresh fix |
