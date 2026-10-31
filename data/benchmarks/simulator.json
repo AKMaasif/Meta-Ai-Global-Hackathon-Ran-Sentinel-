@@ -1,0 +1,112 @@
+{
+  "dataset": "RAN Sentinel simulator (36 cells, Seattle, 15-minute KPIs)",
+  "generated_at": "2026-10-28T05:51:53+00:00",
+  "setup": {
+    "fault_types": [
+      "capacity_surge",
+      "interference",
+      "overshoot",
+      "hardware"
+    ],
+    "severities": [
+      1,
+      2,
+      3
+    ],
+    "cells": [
+      "SEA-RAN-001",
+      "SEA-RAN-011",
+      "SEA-RAN-020",
+      "SEA-RAN-032"
+    ],
+    "max_minutes": 90,
+    "consecutive_windows": 2
+  },
+  "false_alarms_normal_traffic": {
+    "thresholds_only": {
+      "alerts": 0,
+      "per_cell_day": 0.0
+    },
+    "iforest_only": {
+      "alerts": 0,
+      "per_cell_day": 0.0
+    },
+    "cell_baseline_only": {
+      "alerts": 0,
+      "per_cell_day": 0.0
+    },
+    "rules_plus_iforest": {
+      "alerts": 0,
+      "per_cell_day": 0.0
+    },
+    "combined": {
+      "alerts": 0,
+      "per_cell_day": 0.0
+    },
+    "cell_days": 108
+  },
+  "detection": {
+    "thresholds_only": {
+      "detection_rate": 0.792,
+      "detected": 38,
+      "total": 48,
+      "mean_minutes_to_alert": 30.0
+    },
+    "iforest_only": {
+      "detection_rate": 0.562,
+      "detected": 27,
+      "total": 48,
+      "mean_minutes_to_alert": 31.7
+    },
+    "cell_baseline_only": {
+      "detection_rate": 0.646,
+      "detected": 31,
+      "total": 48,
+      "mean_minutes_to_alert": 31.9
+    },
+    "rules_plus_iforest": {
+      "detection_rate": 0.979,
+      "detected": 47,
+      "total": 48,
+      "mean_minutes_to_alert": 30.3
+    },
+    "combined": {
+      "detection_rate": 1.0,
+      "detected": 48,
+      "total": 48,
+      "mean_minutes_to_alert": 30.0
+    }
+  },
+  "diagnosis_offline_rules": {
+    "top1_accuracy": 0.979,
+    "correct": 47,
+    "total": 48,
+    "per_fault": {
+      "capacity_surge": 1.0,
+      "interference": 0.917,
+      "overshoot": 1.0,
+      "hardware": 1.0
+    },
+    "confusion": {
+      "capacity_congestion": {
+        "capacity_congestion": 12
+      },
+      "external_interference": {
+        "external_interference": 11,
+        "capacity_congestion": 1
+      },
+      "overshooting_coverage": {
+        "overshooting_coverage": 12
+      },
+      "hardware_fault": {
+        "hardware_fault": 12
+      }
+    },
+    "data_dropout_detected": {
+      "detected": 4,
+      "total": 4
+    }
+  },
+  "caveat": "Simulated data written by us; these numbers show the pipeline works as designed, not field accuracy.",
+  "runtime_s": 372.8
+}

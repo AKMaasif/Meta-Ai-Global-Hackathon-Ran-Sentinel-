@@ -1,0 +1,72 @@
+flowchart TD
+    subgraph L1["Layer 1 · Data"]
+        A["Load network telemetry"] --> B{"Data quality checks pass?"}
+        B -- No --> B1["Quarantine window and log data-quality issue"]
+    end
+
+    subgraph L2["Layer 2 · Detection (ML, no LLM)"]
+        B -- Yes --> C["Threshold baseline + Isolation Forest"]
+        C --> D{"Meets alert criteria?"}
+        D -- No --> E["Record result and continue monitoring"]
+        D -- Yes --> D1{"Same anomaly already open?"}
+        D1 -- Yes --> D2["Attach to existing incident"]
+        D1 -- No --> F["Create incident and evidence snapshot"]
+    end
+
+    subgraph L3["Layer 3 · Orchestrator (state machine + budgets)"]
+        F --> G["Start investigation: max 8 tool calls, 2 evidence rounds, 2 plan retries, timeouts"]
+        G --> G1{"Muse Spark call OK?"}
+        G1 -- "Error / timeout" --> G2["Retry with backoff, then fall back to muse-spark-1.2"]
+        G2 --> G3{"Recovered?"}
+        G3 -- No --> ESC
+        G3 -- Yes --> H
+        G1 -- Yes --> H
+    end
+
+    subgraph L4["Layer 4 · Agents (Muse Spark 1.3)"]
+        H["RAN Investigator: read-only KPI and alarm tools + M-Plane get-config"] --> H1{"Tool result valid?"}
+        H1 -- No --> H2["Mark evidence missing; never invent it"]
+        H2 --> I
+        H1 -- Yes --> I["Root-Cause Analyst: capacity / overshoot / interference"]
+        I --> V1{"Output schema valid and every claim cites evidence?"}
+        V1 -- "No (1 repair try)" --> I
+        V1 -- Yes --> J{"Enough evidence?"}
+        J -- "No, rounds left" --> K["Request additional read-only checks"]
+        K --> H
+        J -- "No, budget spent" --> ESC
+        J -- Yes --> L["Remediation Planner drafts action + rollback"]
+    end
+
+    subgraph L5["Layer 5 · Safety and governance (deterministic)"]
+        L --> M["Safety validator: allow-list, step limits, prerequisites, rollback"]
+        M --> SB["Maveric RF digital twin: what-if simulation of the change"]
+        SB --> SBE{"Simulation ran?"}
+        SBE -- "No (service down)" --> SBF["Flag 'not simulated' and require engineer review"]
+        SBF --> R
+        SBE -- Yes --> N{"All rules pass and predicted impact within limits?"}
+        N -- No --> O["Reject with reasons"]
+        O --> P{"Retry budget left?"}
+        P -- Yes --> L
+        P -- No --> ESC["Escalate to engineer with full trace"]
+        N -- Yes --> R["Engineer reviews"]
+        R --> S{"Approved?"}
+        S -- No --> T["Record rejection and rationale"]
+        S -- Yes --> U["Record approved plan"]
+        U --> MP["Build Open M-Plane NETCONF change package: edit-config + confirmed-commit rollback"]
+        MP --> MPV{"Dry run on simulated radio unit OK?"}
+        MPV -- No --> ESC
+        MPV -- Yes --> MON{"Recovery criteria met while monitoring?"}
+        MON -- Yes --> RES["Resolve incident"]
+        MON -- "No (once)" --> G
+    end
+
+    subgraph L6["Layer 6 · Ledger and surfaces"]
+        B1 --> LED
+        E --> LED
+        D2 --> LED
+        ESC --> LED
+        T --> LED
+        RES --> LED
+        LED["Evidence-to-Action Safety Ledger"] --> W["Customer Comms agent: publish approved fields only"]
+        W --> X["Engineer console and customer status view"]
+    end

@@ -1,0 +1,685 @@
+const { api, esc } = UI;
+const app = document.getElementById("app");
+let toastTimer = null, lastTop = null;
+const chat = [];
+const ui = { place: "home", report: { place: "home", symptom: "no_service" } };
+
+const I = {
+  home: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  net: '<path d="M2 20h2M6 20v-4M10 20v-8M14 20v-12M18 20V4"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',
+  bill: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+  help: '<path d="M4 5h16v11H9l-5 4z"/><path d="M9 10h.01M12 10h.01M15 10h.01"/>',
+  bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  wifi: '<path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1"/>',
+  msg: '<path d="M4 5h16v11H9l-5 4z"/>',
+  bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+  card: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+  pin: '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+  flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+  bag: '<path d="M5 8h14l-1 13H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+  spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/>',
+  check: '<path d="M5 12l5 5 9-10"/>',
+  down: '<path d="M12 4v12M6 11l6 6 6-6M5 20h14"/>',
+  gift: '<rect x="3" y="9" width="18" height="12" rx="1"/><path d="M3 13h18M12 9v12M12 9c-2-4-6-4-6-1s6 1 6 1 6 2 6-1-4-3-6 1"/>',
+  phone: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+  watch: '<rect x="7" y="6" width="10" height="12" rx="3"/><path d="M9 6l1-4h4l1 4M9 18l1 4h4l1-4"/>',
+  router: '<rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 17h.01M11 17h.01M8 9a6 6 0 0 1 8 0M5.5 6.5a10 10 0 0 1 13 0"/>',
+  send: '<path d="M4 12l16-8-6 16-2-7z"/>',
+};
+const ic = (k, s = 20) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[k]}</svg>`;
+const clock = (iso) => { if (!iso) return ""; const h = +iso.slice(11, 13), m = iso.slice(14, 16); return `${h % 12 || 12}:${m} ${h < 12 ? "AM" : "PM"}`; };
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const date = (iso) => (iso ? `${MONTHS[+iso.slice(5, 7) - 1]} ${+iso.slice(8, 10)}` : "");
+const money = (n) => `$${Number(n).toFixed(2)}`;
+const KIND = { normal: ["ok", "Normal"], degraded: ["warn", "Slower service"], outage: ["bad", "Service problem"], restored: ["ok", "Restored"] };
+const pill = (k) => `<span class="pill ${KIND[k][0]}">${KIND[k][1]}</span>`;
+const sig = (k) => `<span class="sig ${k}" aria-hidden="true"><i></i><i></i><i></i><i></i></span>`;
+const conf = (c) => `<span class="conf" title="Confidence: ${c}">${[1, 2, 3].map((i) => `<i class="${i <= { low: 1, medium: 2, high: 3 }[c] ? "on" : ""}"></i>`).join("")}</span>`;
+function guard(fn) { return fn().catch((e) => { if (e.status === 401) location.hash = "#/login"; else { console.error(e); toast("Something went wrong", e.message); } }); }
+function toast(title, body) {
+  document.querySelector(".toast")?.remove();
+  const t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status");
+  t.innerHTML = `<b>${esc(title)}</b>${body ? `<span>${esc(body)}</span>` : ""}`;
+  document.body.appendChild(t); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), 4500);
+}
+function keepScroll(render) { const y = window.scrollY; render(); window.scrollTo(0, y); }
+
+function shell(active, inner, head) {
+  const h = head || {};
+  return `<div class="app">
+    <header class="topbar">${h.back ? `<a class="back" href="${h.back}" aria-label="Back">‹</a>` : `<a class="avatar" href="#/account" aria-label="Account">JR</a>`}
+      <div class="who"><b>${esc(h.title || "Northstar Connect")}</b>${h.sub ? `<span>${esc(h.sub)}</span>` : ""}</div>
+      <a class="iconbtn" href="#/notifications" aria-label="Notifications">${ic("bell", 22)}<span id="badge"></span></a></header>
+    ${inner}
+    <nav class="tabbar" aria-label="Main">${[["home", "Home", "home"], ["network", "Network", "net"], ["account", "Account", "user"], ["bill", "Bill", "bill"], ["help", "Help", "help"]]
+      .map(([r, l, k]) => `<a href="#/${r}" class="${active === r ? "on" : ""}" ${active === r ? 'aria-current="page"' : ""}>${ic(k, 22)}${l}</a>`).join("")}</nav></div>`;
+}
+function badge(n) { const b = document.getElementById("badge"); if (b) b.outerHTML = `<span id="badge">${n ? `<span class="badge">${n > 9 ? "9+" : n}</span>` : ""}</span>`; }
+function notice(home) {
+  const top = home.notifications[0];
+  if (top && lastTop && top.id !== lastTop) toast(top.title, top.body);
+  if (top) lastTop = top.id;
+  badge(home.unread);
+}
+
+const view = { set html(h) { if (app.querySelector(".app")) UI.morph(app, h); else app.innerHTML = h; } };
+let offline = false;
+const poll = UI.poller({ onState: (s) => {
+  if (!s.ok) console.error("refresh failed:", s.error);
+  if (!s.ok && !offline) { offline = true; toast("Connection lost", "Showing the last update. Retrying…"); }
+  if (s.ok && offline) { offline = false; toast("Back online", "Your network status is up to date."); }
+} });
+const fatal = (e) => { if (e.status === 401) location.hash = "#/login"; else console.error(e); };
+function route() {
+  const [p, arg] = (location.hash.replace(/^#\/?/, "") || "home").split("/");
+  const pages = { home, network: () => network(arg), account, bill, help, notifications, report, shop };
+  voice.show(p !== "login");
+  if (p === "login") { poll.stop(); voice.end(); return login(); }
+  const fn = pages[p] || home;
+  if (["home", "network", "notifications", "bill"].includes(p) || !pages[p]) return poll.start(fn, 5000, fatal);
+  guard(fn);
+  poll.start(async () => notice(await api("/api/care/home")), 8000, fatal);
+}
+window.addEventListener("hashchange", () => { window.scrollTo(0, 0); route(); });
+function login() {
+  app.innerHTML = `<div class="login"><div class="brandmark"><span class="mk">NC</span>Northstar Connect</div>
+    <p class="muted" style="text-align:center">Your account, your network and an AI care team, in one app.</p>
+    <form id="f" class="grid" style="gap:12px"><div class="field"><label for="em">Email</label><input id="em" type="email" value="customer@northstar.demo" autocomplete="username" required></div>
+    <div class="field"><label for="pw">Password</label><input id="pw" type="password" placeholder="CUSTOMER_PASSWORD from your .env file" autocomplete="current-password" required></div>
+    <p id="err" class="err" hidden></p><button class="b block">Sign in</button></form>
+    <p class="muted-note">Demo app for a fictional carrier. No real account, payment or network.<br>Engineers: <a href="/ops/">RAN Sentinel Operations</a></p></div>`;
+  document.getElementById("f").onsubmit = async (e) => {
+    e.preventDefault();
+    try { await api("/api/login", { body: { email: document.getElementById("em").value, password: document.getElementById("pw").value, portal: "connect" } }); location.hash = "#/home"; }
+    catch (x) { const err = document.getElementById("err"); err.hidden = false; err.innerHTML = esc(x.message) + (x.portal === "ops" ? ` <a href="/ops/">Open RAN Sentinel Operations</a>` : ""); }
+  };
+}
+
+function worstPlace(places) {
+  const rank = { outage: 3, degraded: 2, normal: 0 };
+  return [...places].sort((a, b) => rank[b.status] - rank[a.status] || (b.recently_restored ? 1 : 0) - (a.recently_restored ? 1 : 0))[0];
+}
+function heroCard(p) {
+  const i = p.issue || p.recently_restored;
+  if (!i) return `<section class="hero normal"><div class="row" style="display:flex;gap:10px;align-items:center">${sig("normal")}<span class="t">All good at your places</span></div>
+    <p class="muted">No known network problems at Home, Work or Gym. We'll tell you first if that changes.</p></section>`;
+  const k = p.issue ? p.status : "restored";
+  const cur = i.journey.find((j) => j.state === "current");
+  return `<section class="hero ${k}" aria-live="polite"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center">${pill(k)}<span class="small muted">Updated ${clock(i.updated)} PT</span></div>
+    <div class="t">${k === "restored" ? `Service is back at ${esc(p.label)}` : `${k === "outage" ? "Service problem" : "Slower service"} at ${esc(p.label)}`}</div>
+    <p>${esc(k === "restored" ? "Thanks for your patience. If your phone still has trouble, turn Airplane mode on and off." : `${i.cause} ${i.impact}`)}</p>
+    ${k !== "restored" ? `<div class="progress" aria-label="Progress: ${esc(cur ? cur.label : "")}">${i.journey.map((j) => `<i class="${j.state}"></i>`).join("")}</div>
+    <div class="small"><b>${esc(cur ? cur.label : "")}</b> · step ${i.stage + 1} of 6</div>
+    <div class="eta">${ic("clock", 22)}<div><b>${esc(i.eta.text || "")}</b><div class="small muted">Estimate ${conf(i.eta.confidence)} ${esc(i.eta.confidence)} confidence</div></div></div>` : ""}
+    <div class="btns"><a class="b sm" href="#/network/${p.id}">See details</a><a class="b sm ghost" href="#/help">Ask the assistant</a></div></section>`;
+}
+function suggList(list, limit = 3) {
+  if (!list.length) return "";
+  return `<div class="sugg-list">${list.slice(0, limit).map((s) => `<div class="sugg"><span class="ic">${ic(s.id === "wifi_calling" ? "wifi" : s.id === "texts" ? "msg" : s.id === "offline" ? "down" : "bolt", 18)}</span>
+    <b>${esc(s.title)}</b><p>${esc(s.text)}</p>${s.action ? `<div class="btns"><button class="b sm soft" data-set="${esc(s.action.setting)}">Turn on</button></div>` : ""}</div>`).join("")}</div>`;
+}
+function bindSugg(after) {
+  document.querySelectorAll("[data-set]").forEach((b) => (b.onclick = async () => {
+    b.disabled = true;
+    await api("/api/care/prefs", { body: { key: b.dataset.set, value: true } });
+    toast("Done", b.dataset.set === "wifi_calling" ? "Wi-Fi Calling is on." : "Data Saver is on.");
+    after();
+  }));
+}
+async function home() {
+  const h = await api("/api/care/home");
+  const a = h.account, w = worstPlace(h.places);
+  const used = a.lines.reduce((s, l) => s + l.data_used_gb, 0);
+  const credit = h.credits.find((c) => c.eligible);
+  keepScroll(() => {
+    view.html = shell("home", `<div class="hero-band"></div><div class="page" style="padding-top:12px">
+      ${heroCard(w)}
+      ${credit ? `<section class="card" style="background:#fff8e6;border-color:#f1d6a6"><div class="row"><div><b>A ${money(credit.amount)} credit is ready</b><p class="small">For the outage at your ${esc(credit.place)}. No call needed.</p></div><a class="b sm" href="#/bill">Apply</a></div></section>` : ""}
+      <div class="sect"><h2>Your places</h2><a href="#/account">Edit</a></div>
+      <div class="places">${h.places.map((p) => `<a class="place" href="#/network/${p.id}"><div style="display:flex;justify-content:space-between;align-items:center"><b>${esc(p.label)}</b>${sig(p.status)}</div>
+        <span>${esc(p.area)}</span><span style="color:var(--${KIND[p.status][0] === "ok" ? "ok" : KIND[p.status][0]})">${KIND[p.status][1]}</span></a>`).join("")}</div>
+      <div class="duo"><a class="card" href="#/bill" style="text-decoration:none;color:inherit"><span class="label">Balance due</span><span class="big">${money(a.bill.balance_after_credits)}</span>
+        <span class="small muted">Due ${date(a.bill.due)} · AutoPay ${a.bill.autopay ? "on" : "off"}</span></a>
+        <a class="card" href="#/account" style="text-decoration:none;color:inherit"><span class="label">Data this cycle</span><span class="big">${used.toFixed(1)} <span style="font-size:15px">GB</span></span>
+        <span class="small muted">Unlimited · ${a.lines.length} lines</span></a></div>
+      <div class="quick">
+        <a href="#/bill"><span class="ic">${ic("card")}</span>Pay bill</a>
+        <a href="#/network"><span class="ic">${ic("net")}</span>Network</a>
+        <a href="#/report"><span class="ic">${ic("flag")}</span>Report a problem</a>
+        <button id="q-wifi"><span class="ic">${ic("wifi")}</span>Wi-Fi Calling ${h.prefs.wifi_calling ? "on" : "off"}</button>
+        <a href="#/help"><span class="ic">${ic("spark")}</span>Ask AI</a>
+        <a href="#/shop"><span class="ic">${ic("bag")}</span>Shop</a></div>
+      ${w.suggestions.length ? `<div class="sect"><h2>For you right now</h2></div><section class="card">${suggList(w.suggestions)}</section>` : ""}
+      <a class="aistrip" href="#/help">${ic("spark", 26)}<div><b>Your AI care team</b><span>Watching ${h.places.length} places · ${h.engine === "meta" ? "Meta Muse models" : "offline rules (no Meta key)"}</span></div><span class="go">›</span></a>
+      ${h.notifications.length ? `<div class="sect"><h2>Latest from us</h2><a href="#/notifications">See all</a></div><section class="card">${h.notifications.slice(0, 2).map(noteItem).join("")}</section>` : ""}
+      <section class="perk"><b>Northstar Perks</b><span>Thanks for being with us since ${esc(a.member_since)}. New member perks every Thursday.</span></section>
+      <p class="muted-note">Demo app for a fictional carrier. Network times are simulated, in ${esc(h.timezone)}.</p></div>`,
+      { title: `Hi, ${a.first_name}`, sub: `Account ${a.account}` });
+  });
+  notice(h);
+  bindSugg(() => poll.now());
+  document.getElementById("q-wifi").onclick = async () => {
+    await api("/api/care/prefs", { body: { key: "wifi_calling", value: !h.prefs.wifi_calling } });
+    toast(`Wi-Fi Calling ${h.prefs.wifi_calling ? "off" : "on"}`); poll.now();
+  };
+}
+
+function issueDetail(p) {
+  const i = p.issue || p.recently_restored;
+  if (!i) return `<section class="card"><div class="row"><h2>${esc(p.label)} · ${esc(p.area)}</h2>${pill("normal")}</div>
+    <p>No known network problems here. If your phone isn't working well, tell us and we'll check your line and the network together.</p>
+    <a class="b ghost block" href="#/report">Report a problem here</a></section>`;
+  const k = p.issue ? p.status : "restored";
+  return `<section class="card"><div class="row"><h2>${esc(p.label)} · ${esc(p.area)}</h2>${pill(k)}</div>
+      <p><b>${esc(i.headline)}</b></p>
+      <div class="kv"><span class="muted">What's happening</span><span></span></div><p style="margin-top:-6px">${esc(i.cause)}</p>
+      <div class="kv"><span class="muted">What you may notice</span><span></span></div><p style="margin-top:-6px">${esc(i.impact)}</p>
+      ${k !== "restored" ? `<div class="etabox"><span class="label">Estimated back to normal</span><span class="when">${clock(i.eta.from)} to ${clock(i.eta.to)} PT</span>
+        <span class="small">${conf(i.eta.confidence)} ${esc(i.eta.confidence)} confidence · ${esc(i.eta.basis)}</span></div>` : ""}
+      <span class="label">Progress</span>
+      <div class="journey">${i.journey.map((j) => `<div class="step ${j.state}"><span class="k">${j.state === "done" ? ic("check", 12) : ""}</span><span>${esc(j.label)}</span></div>`).join("")}</div>
+      <div class="small muted">Reference ${esc(i.reference)} · started ${clock(i.started)} PT</div>
+      <a class="b ghost block" href="#/report">I'm affected: tell engineers</a></section>
+    ${p.suggestions.length ? `<section class="card"><h2>What you can do now</h2>${suggList(p.suggestions, 4)}</section>` : ""}
+    ${i.history.length ? `<section class="card"><h2>Updates from our engineers</h2><div class="list">${i.history.map((u) => `<div class="li"><span>${esc(u.text)}</span><span class="small muted">${clock(u.at)}</span></div>`).join("")}</div></section>` : ""}`;
+}
+async function network(arg) {
+  if (arg) ui.place = arg;
+  const pid = ui.place;
+  const [n, mp, sg] = await Promise.all([api("/api/care/network"), api("/api/care/map?place=" + encodeURIComponent(pid)).catch(() => null),
+    api("/api/care/signal?place=" + encodeURIComponent(pid)).catch(() => null)]);
+  const p = n.places.find((x) => x.id === ui.place) || n.places[0];
+  keepScroll(() => {
+    view.html = shell("network", `<div class="page" style="padding-top:12px">
+      <div class="places">${n.places.map((x) => `<a class="place ${x.id === p.id ? "on" : ""}" href="#/network/${x.id}"><div style="display:flex;justify-content:space-between;align-items:center"><b>${esc(x.label)}</b>${sig(x.status)}</div><span>${esc(x.area)} ${esc(x.zip)}</span></a>`).join("")}</div>
+      ${issueDetail(p)}
+      ${signalCard(sg, p)}
+      <div class="sect"><h2>Towers near your ${esc(p.label)}</h2></div>
+      <div class="mapwrap"><div id="cgeoslot" class="cgeoslot" data-keep></div>
+        <div class="legend"><span><i style="background:#0d5257;box-shadow:0 0 0 2px #9fd3d3"></i>Connected</span><span><i style="background:var(--ok)"></i>Available</span><span><i style="background:var(--warn)"></i>Problem</span><span><i style="background:var(--bad)"></i>Unavailable</span><span><i style="background:#fff;box-shadow:inset 0 0 0 2px #0d5257"></i>Your phone</span></div>
+        <p class="small muted" style="padding:0 14px 12px">${mp ? `Only towers within ${mp.radius_km} km of your ${esc(p.label)}. Drag your phone to see how the signal changes nearby. ${esc(mp.source.label)}` : "Map unavailable right now."}</p></div>
+      <section class="card"><h2>All neighborhoods</h2><div class="list">${n.areas.map((a) => `<div class="li"><span><b>${esc(a.area)}</b> <span class="small muted mono">${esc(a.zip)}</span>${a.issue ? `<div class="sub">${esc(a.issue.eta.text || "")}</div>` : ""}</span>${pill(a.status)}</div>`).join("")}</div></section>
+      ${n.reports.length ? `<section class="card"><h2>Your reports</h2><div class="list">${n.reports.map((r) => `<div class="li"><span><b>${esc(r.symptom)} · ${esc(r.place)}</b><div class="sub">${esc(r.outcome === "linked" ? "Added to the engineers' open repair" : "Checked: no network problem found")}</div></span><span class="small muted mono">${esc(r.id)}</span></div>`).join("")}</div></section>` : ""}
+      </div>`, { title: "Network", sub: "Live status for your places" });
+  });
+  bindSugg(() => poll.now());
+  bindSignal(p);
+  customerMap(mp);
+  guard(async () => notice(await api("/api/care/home")));
+}
+
+const QCOL = { excellent: "ok", good: "ok", fair: "warn", poor: "bad", disconnected: "bad", unknown: "info" };
+const QTEXT = { excellent: "Excellent", good: "Good", fair: "Fair", poor: "Poor", disconnected: "Disconnected", unknown: "Unknown" };
+const QBARS = { excellent: 4, good: 3, fair: 2, poor: 1, disconnected: 0, unknown: 0 };
+function spark(vals, lowerBetter) {
+  const v = vals.filter((x) => x != null);
+  if (v.length < 2) return "";
+  const lo = Math.min(...v), hi = Math.max(...v), W = 90, H = 24;
+  const pts = vals.map((x, i) => x == null ? null : `${(i / (vals.length - 1)) * W},${H - 2 - ((x - lo) / (hi - lo || 1)) * (H - 4)}`).filter(Boolean).join(" ");
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="1.6"/></svg>`;
+}
+function browserNet() {
+  const c = navigator.connection;
+  if (!c || c.effectiveType == null) return `<span class="muted">Your browser doesn't report network details.</span>`;
+  return `<span>${esc(String(c.effectiveType).toUpperCase())}-class link · about ${c.downlink ?? "?"} Mbps · ${c.rtt ?? "?"} ms round trip</span><span class="small muted">Reported by your browser for whatever connection this device is using (often Wi-Fi). It is not a cellular measurement.</span>`;
+}
+function signalCard(sg, p) {
+  if (!sg) return `<section class="card"><h2>Your connection</h2><p class="muted">Signal measurements are unavailable right now.</p></section>`;
+  const q = sg.quality, ex = (ui.explain || {})[p.id];
+  const m = sg.metrics;
+  return `<section class="card" aria-live="polite"><div class="row"><h2>Your connection at ${esc(sg.place)}</h2><span class="pill plain info">Simulated</span></div>
+    <div class="qhead"><div class="qbars ${QCOL[q]}" aria-hidden="true">${[1, 2, 3, 4].map((i) => `<i class="${i <= QBARS[q] ? "on" : ""}"></i>`).join("")}</div>
+      <div><span class="qlabel ${QCOL[q]}">${QTEXT[q]}</span><div class="small muted">${esc(sg.connection === "disconnected" ? "No usable signal" : `${sg.technology} · ${sg.band}`)}${sg.drivers.length && !["excellent", "good"].includes(q) ? ` · limited by ${esc(sg.drivers.join(", "))}` : ""}</div></div></div>
+    ${sg.serving ? `<div class="kv"><span class="muted">Serving tower</span><span>${esc(sg.serving.name)}</span><span class="muted">Distance</span><span>${sg.serving.distance_km} km</span>
+      ${sg.alternatives.length ? `<span class="muted">Other towers in range</span><span>${sg.alternatives.map((a) => esc(a.name.replace("Northstar tower · ", ""))).join(", ")}</span>` : ""}
+      <span class="muted">Tower changes, last 3 h</span><span>${sg.tower_changes}</span><span class="muted">Updated</span><span>${clock(sg.at)} PT</span></div>` : ""}
+    <div class="metrics">${Object.entries(m).map(([k, v]) => `<div class="metric"><span class="small muted">${esc(v.name)}</span>
+      <span class="mv">${v.value == null ? `<span class="muted">Unavailable</span>` : `${v.value} <small>${esc(v.unit)}</small>`}</span>
+      <span class="pill plain ${QCOL[v.rating]}">${QTEXT[v.rating]}</span>${spark(sg.series.map((x) => x[k] ?? null))}</div>`).join("")}</div>
+    ${sg.issue ? `<p class="small"><b>Known problem nearby:</b> ${esc(sg.issue.cause)} ${esc(sg.issue.eta || "")}</p>` : ""}
+    <div class="sugg-list">${sg.guidance.map((g) => `<div class="sugg"><span class="ic">${ic("bolt", 18)}</span><p style="grid-row:span 3;align-self:center">${esc(g)}</p></div>`).join("")}</div>
+    <div class="ai-box">${ex ? explainBlock(ex) : `<div class="row"><span><b>Signal intelligence</b><div class="small muted">Meta Muse Spark reads these measurements and explains them</div></span><button class="b sm" id="explain" ${ui.reading && ui.reading === p.id ? "disabled" : ""}>${ui.reading && ui.reading === p.id ? "Reading…" : "Explain"}</button></div>`}</div>
+    <details class="how"><summary>About these numbers</summary><p class="small">${esc(sg.source.label)} Model: ${esc(sg.source.model)}. Ratings use a separate scale per metric (for example RSRP excellent at -80 dBm or better, SINR excellent at 20 dB or better, latency excellent under 50 ms).</p>
+      <p class="small" style="margin-top:6px"><b>This device:</b> ${browserNet()}</p></details></section>`;
+}
+function explainBlock(e) {
+  const list = (t, xs) => xs && xs.length ? `<div><span class="label">${t}</span><ul>${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : "";
+  return `<div class="row"><b>Signal intelligence</b><span class="by">${esc(e.by.startsWith("muse") ? e.by.replace("muse-spark-", "Muse Spark ") : e.by === "template" ? "fixed rules (no Meta key set)" : "fixed rules (AI unavailable)")}</span></div>
+    <p>${esc(e.summary)}</p>${list("Confirmed by the measurements", e.confirmed)}${list("Probable", e.probable)}${list("Not verified", e.unverified)}${list("What to try", e.steps)}
+    <span class="small muted">An interpretation, not a measurement. The numbers above are the source of truth.</span>`;
+}
+function bindSignal(p) {
+  const b = document.getElementById("explain");
+  if (!b) return;
+  b.onclick = async () => {
+    if (ui.reading) return;
+    ui.reading = p.id; b.disabled = true; b.textContent = "Reading…";
+    try { const e = await api("/api/care/signal/explain", { body: { place: p.id } }); ui.explain = { ...(ui.explain || {}), [p.id]: e }; }
+    catch (e) { toast("Couldn't explain", e.message); }
+    finally { ui.reading = null; }
+    poll.now();
+  };
+}
+
+let cm = null, cmSig = "", cmLayer = null, cmPlace = null;
+const TCOL = { connected: "#0d5257", available: "#1d7a46", problem: "#c27a00", unavailable: "#b42318" };
+function customerMap(mp) {
+  const slot = document.getElementById("cgeoslot");
+  if (!slot) return;
+  if (!window.L) { slot.innerHTML = `<p class="muted" style="padding:16px">The map couldn't load.</p>`; return; }
+  if (!mp || !mp.towers.length) { slot.innerHTML = `<p class="muted" style="padding:16px">No Northstar towers found near this place.</p>`; return; }
+  if (!cm) { cm = GeoMap.create({ label: "Towers near your place", minZoom: 12 }); cmLayer = L.layerGroup().addTo(cm.map); }
+  GeoMap.mount(cm, slot);
+  const b = L.latLngBounds(mp.bounds);
+  cm.map.setMaxBounds(b.pad(0.1));
+  if (cmPlace !== mp.place.id + mp.place.zip) { cmPlace = mp.place.id + mp.place.zip; cm.map.fitBounds(b.pad(-0.25)); cmSig = ""; }
+  const sig = JSON.stringify([mp.place.lat, mp.place.lon, mp.towers.map((t) => [t.key, t.status, t.coverage_km])]);
+  if (sig === cmSig) return;
+  cmSig = sig;
+  cmLayer.clearLayers();
+  for (const t of mp.towers) L.circle([t.lat, t.lon], { radius: t.coverage_km * 1000, stroke: false, fillColor: t.status === "unavailable" ? "#b42318" : t.status === "problem" ? "#c27a00" : "#0f7a4d", fillOpacity: .06, interactive: false }).addTo(cmLayer);
+  const serving = mp.towers.find((t) => t.serving);
+  if (serving) L.polyline([[mp.place.lat, mp.place.lon], [serving.lat, serving.lon]], { color: "#0d5257", weight: 2.5, dashArray: "6 6" }).addTo(cmLayer);
+  L.circle(mp.place.center, { radius: mp.place.move_radius_km * 1000, color: "#0d5257", weight: 1, dashArray: "3 5", fill: false, interactive: false }).addTo(cmLayer);
+  for (const t of mp.towers) {
+    const label = { connected: "Connected (your phone uses this tower)", available: "Available", problem: "Service problem reported", unavailable: "Unavailable: repair underway" }[t.status];
+    L.circleMarker([t.lat, t.lon], { radius: t.serving ? 10 : 7, color: t.serving ? "#9fd3d3" : "#fff", weight: t.serving ? 4 : 2, fillColor: TCOL[t.status], fillOpacity: 1, dashArray: t.alternative ? "3 3" : null })
+      .bindTooltip(`${esc(t.name)}<br>${esc(label)}`, { direction: "top" })
+      .bindPopup(`<div class="sitepop"><b>${esc(t.name)}</b><span>${esc(label)}${t.alternative ? " · backup tower in range" : ""}</span><span class="small">${esc(t.technology)} · ${esc(t.bands.join(", "))}</span><span class="small muted">${t.distance_km} km from your phone · modelled reach ${t.coverage_km} km</span></div>`)
+      .addTo(cmLayer);
+  }
+  const phone = L.marker([mp.place.lat, mp.place.lon], { draggable: true, keyboard: true, title: "Your phone (drag to move)", alt: "Your phone",
+    icon: L.divIcon({ className: "", iconSize: [34, 34], iconAnchor: [17, 17], html: `<div class="phonemk">${ic("phone", 16)}</div>` }) }).addTo(cmLayer);
+  phone.bindTooltip("Your phone · drag to move", { direction: "bottom" });
+  phone.on("dragend", async () => {
+    const ll = phone.getLatLng();
+    try { await api("/api/care/phone", { body: { place: mp.place.id, lat: ll.lat, lon: ll.lng } }); }
+    catch (e) { toast("Can't move there", e.message); }
+    cmSig = ""; poll.now();
+  });
+}
+
+async function report() {
+  const n = await api("/api/care/network");
+  const r = ui.report;
+  view.html = shell("network", `<div class="page" style="padding-top:12px">
+    <section class="card"><h2>Report a problem</h2><p class="small muted">We check the network at that place first. If engineers are already fixing it, your report is added to their repair as evidence. If not, we help you check your phone.</p>
+      <form id="rf" class="grid" style="gap:14px">
+        <div><span class="label">Where?</span><div class="chips" style="margin-top:6px">${n.places.map((p) => `<label><input type="radio" name="place" value="${p.id}" ${p.id === r.place ? "checked" : ""}><span>${esc(p.label)} · ${esc(p.area)}</span></label>`).join("")}</div></div>
+        <div><span class="label">What's wrong?</span><div class="chips" style="margin-top:6px">${Object.entries(n.symptoms).map(([k, v]) => `<label><input type="radio" name="sym" value="${k}" ${k === r.symptom ? "checked" : ""}><span>${esc(v)}</span></label>`).join("")}</div></div>
+        <div class="field"><label for="det">Anything else? (optional)</label><textarea id="det" class="ta" maxlength="300" placeholder="For example: no signal indoors since noon"></textarea></div>
+        <button class="b block">Send report</button></form></section>
+    <div id="rres"></div></div>`, { title: "Report a problem", back: "#/network" });
+  badge(0);
+  document.getElementById("rf").onsubmit = async (e) => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    ui.report = { place: f.get("place"), symptom: f.get("sym") };
+    const res = await api("/api/care/report", { body: { place: ui.report.place, symptom: ui.report.symptom, details: document.getElementById("det").value } });
+    document.getElementById("rres").innerHTML = `<section class="card" style="border-color:var(--brand)"><div class="row"><h2>${res.outcome === "linked" ? "Added to the repair" : "Let's check your phone"}</h2><span class="pill plain info mono">${esc(res.id)}</span></div>
+      <p>${esc(res.text)}</p>${suggList(res.suggestions, 4)}</section>`;
+    bindSugg(() => {});
+    document.getElementById("rres").scrollIntoView({ behavior: "smooth" });
+  };
+}
+
+async function account() {
+  const d = await api("/api/care/account");
+  const a = d.account;
+  view.html = shell("account", `<div class="page" style="padding-top:12px">
+    <section class="card"><div class="row"><div style="display:flex;gap:12px;align-items:center"><span class="avatar" style="background:var(--brand);color:#fff;width:48px;height:48px;font-size:17px">JR</span>
+      <div><b style="font-size:17px">${esc(a.name)}</b><div class="small muted">Account ${esc(a.account)} · member since ${esc(a.member_since)}</div></div></div></div></section>
+    <div class="sect"><h2>Lines and devices</h2></div>
+    <section class="card"><div class="list">${a.lines.map((l) => `<div class="li"><span style="display:flex;gap:12px;align-items:center"><span class="quick" style="display:block"><span class="ic" style="width:38px;height:38px;border-radius:50%;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center">${ic(l.kind === "watch" ? "watch" : "phone")}</span></span>
+      <span><b>${esc(l.name)}</b><div class="sub">${esc(l.number)} · ${esc(l.device)}</div></span></span><span class="small mono">${l.data_used_gb} GB</span></div>`).join("")}</div>
+      <span class="small muted">Billing cycle ${date(a.cycle.start)} to ${date(a.cycle.end)} · hotspot ${a.lines.reduce((s, l) => s + l.hotspot_used_gb, 0).toFixed(1)} of ${a.plan.hotspot_gb} GB</span>
+      <div class="bar"><i style="width:${Math.min(100, a.lines.reduce((s, l) => s + l.hotspot_used_gb, 0) / a.plan.hotspot_gb * 100)}%"></i></div></section>
+    <div class="sect"><h2>Your plan</h2><a href="#/shop">Change plan</a></div>
+    <section class="card"><div class="row"><b>${esc(a.plan.name)}</b><span class="mono">${money(a.plan.price)}/mo</span></div>
+      <ul style="margin:0;padding-left:18px;font-size:14px">${a.plan.features.map((f) => `<li>${esc(f)}</li>`).join("")}</ul></section>
+    <div class="sect"><h2>Settings</h2></div>
+    <section class="card"><div class="list">${Object.entries(d.settings).map(([k, v]) => `<label class="li" style="cursor:pointer"><span><b>${esc(v)}</b><div class="sub">${esc({ wifi_calling: "Calls and texts over Wi-Fi when the signal is weak", data_saver: "Smoother streaming when the network is busy", network_alerts: "Tell me first about problems at my places", eta_updates: "Send progress and recovery-time updates" }[k])}</div></span>
+      <input type="checkbox" class="toggle" data-pref="${k}" ${d.prefs[k] ? "checked" : ""}></label>`).join("")}</div></section>
+    <div class="sect"><h2>My places</h2></div>
+    <section class="card"><p class="small muted">We watch the network at these places and tell you first when something is wrong.</p><div class="list">${d.places.map((p) => `<div class="li"><span><b>${esc(p.label)}</b></span>
+      <select class="sel" data-place="${p.id}" aria-label="${esc(p.label)} neighborhood">${d.areas.map((x) => `<option value="${x.zip}" ${x.zip === p.zip ? "selected" : ""}>${esc(x.area)} ${x.zip}</option>`).join("")}</select></div>`).join("")}</div></section>
+    <section class="card"><h2>AI and your data</h2><p class="small">Northstar's AI care team runs on Meta's Muse models. It only reads your own account and the network updates our engineers have published. It suggests; you confirm every change. We don't send your data to model versions that train on it.</p></section>
+    <button class="b ghost block" id="out">Sign out</button>
+    <p class="muted-note">Demo account for a fictional carrier.</p></div>`, { title: "Account" });
+  guard(async () => notice(await api("/api/care/home")));
+  document.querySelectorAll("[data-pref]").forEach((t) => (t.onchange = async () => { await api("/api/care/prefs", { body: { key: t.dataset.pref, value: t.checked } }); toast("Saved", `${d.settings[t.dataset.pref]} ${t.checked ? "on" : "off"}.`); }));
+  document.querySelectorAll("[data-place]").forEach((s) => (s.onchange = async () => { await api("/api/care/places", { body: { place: s.dataset.place, zip: s.value } }); toast("Place updated", "We'll watch the network there for you."); }));
+  document.getElementById("out").onclick = async () => { await api("/api/logout", { body: {} }); location.hash = "#/login"; };
+}
+
+async function bill() {
+  const d = await api("/api/care/account");
+  const b = d.account.bill;
+  const eligible = d.credits.filter((c) => c.eligible);
+  keepScroll(() => {
+    view.html = shell("bill", `<div class="page" style="padding-top:12px">
+      <section class="card"><span class="label">Balance due</span><span class="big" style="font-size:36px">${money(b.balance_after_credits)}</span>
+        <span class="small muted">Due ${date(b.due)} · AutoPay ${b.autopay ? `on with ${esc(b.card)}` : "off"}</span>
+        <div class="btns"><button class="b" id="pay">Pay now</button><button class="b ghost" id="ap">AutoPay settings</button></div></section>
+      ${eligible.map((c) => `<section class="card" style="background:#fff8e6;border-color:#f1d6a6"><div class="row"><div><b>${money(c.amount)} outage credit</b><p class="small">${esc(c.place)} · ${esc(c.area)} · ${c.outage_minutes} min outage. ${esc(c.rule)}.</p></div><button class="b sm" data-credit="${esc(c.reference)}">Apply</button></div></section>`).join("")}
+      <div class="sect"><h2>This bill</h2></div>
+      <section class="card"><div class="kv">${b.items.map((i) => `<span>${esc(i.label)}</span><span>${money(i.amount)}</span>`).join("")}
+        ${d.applied.map((c) => `<span>Outage credit (${esc(c.place)})</span><span style="color:var(--ok)">−${money(c.amount)}</span>`).join("")}</div>
+        <div class="divider"></div><div class="kv"><b>Total</b><b style="text-align:right">${money(b.balance_after_credits)}</b></div></section>
+      <div class="sect"><h2>Outage credits</h2></div>
+      <section class="card"><p class="small">If service at one of your places is down for ${d.credit_policy.minutes} minutes or more, you get a ${money(d.credit_policy.amount)} credit for it, offered automatically. A fixed rule decides this, not the AI.</p>
+        ${d.applied.length ? `<div class="list">${d.applied.map((c) => `<div class="li"><span><b>${money(c.amount)} applied</b><div class="sub">${esc(c.place)} · ${esc(c.reference)}</div></span><span class="pill ok">Applied</span></div>`).join("")}</div>` : ""}</section>
+      <div class="sect"><h2>Payment history</h2></div>
+      <section class="card"><div class="list">${b.history.map((h) => `<div class="li"><span><b>${date(h.date)}</b><div class="sub">${esc(h.status)}</div></span><span class="mono">${money(h.amount)}</span></div>`).join("")}</div></section>
+      <p class="muted-note">Demo app: no payments are taken.</p></div>`, { title: "Bill" });
+  });
+  guard(async () => notice(await api("/api/care/home")));
+  document.getElementById("pay").onclick = () => toast("Demo app", "No payments are taken in this demo.");
+  document.getElementById("ap").onclick = () => toast("Demo app", "AutoPay is on with the card on file.");
+  document.querySelectorAll("[data-credit]").forEach((x) => (x.onclick = async () => {
+    x.disabled = true;
+    const r = await api("/api/care/credit", { body: { reference: x.dataset.credit } });
+    toast("Credit applied", `${money(r.amount)} comes off your next bill.`); poll.now();
+  }));
+}
+
+function noteItem(n) {
+  const k = { alert: "net", progress: "clock", restored: "check", credit: "gift" }[n.kind] || "bell";
+  return `<a class="note ${n.kind} ${n.read ? "" : "unread"}" href="${n.kind === "credit" ? "#/bill" : "#/network"}"><span class="ic">${ic(k, 18)}</span>
+    <b>${esc(n.title)}</b><p>${esc(n.body)}</p><time>${date(n.at)}, ${clock(n.at)} PT</time></a>`;
+}
+async function notifications() {
+  const d = await api("/api/care/notifications");
+  keepScroll(() => {
+    view.html = shell("", `<div class="page" style="padding-top:12px"><section class="card">${d.items.length ? d.items.map(noteItem).join("") :
+      `<p class="muted">Nothing yet. We'll tell you here first when there's a network problem at your places, how the repair is going, and when it's fixed.</p>`}</section>
+      <p class="muted-note">Alerts come from the network team's published updates for Home, Work and Gym.</p></div>`, { title: "Notifications", back: "#/home" });
+  });
+  if (d.items.some((n) => !n.read)) await api("/api/care/notifications/read", { body: {} });
+  badge(0);
+}
+
+const LAYERS = [
+  ["Listen", "Muse Voice Transcribe", "Turns a spoken question into text. You check it before it's sent."],
+  ["Care Concierge", "Muse Spark 1.3 (1.2, 1.1 as backup)", "Plans the answer and calls tools that see only your account and your places. In a voice conversation it also runs the app for you."],
+  ["Speak", "Gemini TTS (your browser's voice as backup)", "Reads answers aloud in a natural voice. It only gets the answer text, never your account."],
+  ["Network Explainer", "Muse Spark 1.3", "Writes updates in plain words from facts engineers have approved."],
+  ["Recovery Estimator", "Fixed rules, no AI", "Estimates when service is back from the repair stage and typical repair times."],
+  ["Personal Advisor", "Fixed rules, no AI", "Suggests what helps you now, like Wi-Fi Calling or Data Saver."],
+  ["Guardrails", "Fixed rules, no AI", "Blocks technical or internal details, applies the credit rule, and waits for you to confirm any change."],
+];
+const byLabel = (b) => b === "instant" ? "Done instantly (a simple command, no AI needed)" : b.startsWith("muse") ? `Answered by ${b.replace("muse-spark-", "Muse Spark ")}` :
+  b === "rules" ? "Answered by fixed rules (no Meta key set)" : "Answered by fixed rules (AI unavailable right now)";
+function bubble(m, i) {
+  if (m.who === "me") return `<div class="bubble me">${esc(m.text)}</div>`;
+  return `<div class="bubble bot"><span>${esc(m.text)}</span>
+    ${(m.actions || []).length ? `<div class="acts">${m.actions.map((a) => `<div class="act"><b>${esc(a.label)}</b>${a.done ? `<span class="pill ok">${esc(a.done)}</span>` :
+      `<div class="btns"><button class="b sm" data-confirm="${esc(a.id)}" data-m="${i}">Confirm</button><button class="b sm ghost" data-skip="${esc(a.id)}" data-m="${i}">Not now</button></div>`}</div>`).join("")}</div>` : ""}
+    ${(m.steps || []).length ? `<details class="how"><summary>How I answered (${m.steps.length} steps)</summary><ol>${m.steps.map((s) => `<li>${esc(s.label)}</li>`).join("")}</ol></details>` : ""}
+    ${m.by ? `<span class="by">${esc(byLabel(m.by))}</span>` : ""}</div>`;
+}
+async function help() {
+  const h = await api("/api/care/home");
+  view.html = shell("help", `<div class="page" style="padding-top:12px">
+    <section class="card"><div style="display:flex;gap:12px;align-items:center"><span class="avatar" style="background:var(--brand);color:#fff">${ic("spark", 18)}</span>
+      <div><b>Northstar assistant</b><div class="small muted">${h.engine === "meta" ? "Powered by Meta Muse models" : "Offline rules (no Meta key set)"} · sees only your account and published network updates</div></div></div></section>
+    <div class="prompts">${["When will service be back at home?", "Why is my data slow at work?", "Can I get a credit for the outage?", "Turn on Wi-Fi Calling", "Is there an issue in 98119?", "What's my bill this month?"].map((q) => `<button>${esc(q)}</button>`).join("")}</div>
+    <div class="chatlog" id="log">${chat.map(bubble).join("") || `<div class="bubble bot"><span>Hi ${esc(h.account.first_name)}, I can check the network at your places, explain what's happening and when it should be fixed, change settings for you, and apply outage credits. What can I help with?</span></div>`}</div>
+    <form class="composer" id="ask"><input id="q" type="text" placeholder="Ask anything, or tap the mic" aria-label="Your question" autocomplete="off">
+      <button class="round" type="button" id="mic" title="Ask by voice" aria-label="Ask by voice">${UI.MIC}</button><button class="round send" aria-label="Send">${ic("send", 18)}</button></form>
+    <p class="small muted" id="vmsg" hidden></p>
+    <div class="sect"><h2>Your AI care team</h2></div>
+    <section class="card"><p class="small">Seven layers work on your question. Only the first four use AI; the rest are fixed rules, so estimates, credits and changes stay predictable.</p>
+      <div class="team">${LAYERS.map((l, i) => `<div class="layer"><span class="n">${i + 1}</span><div><b>${esc(l[0])}</b> <span class="m">${esc(l[1])}</span></div><p>${esc(l[2])}</p></div>`).join("")}</div></section>
+    <section class="card"><h2>Other help</h2><div class="list">
+      <a class="li" href="#/report"><span><b>Report a network problem</b><div class="sub">Goes to our engineers if it matches a repair</div></span><span>›</span></a>
+      <button class="li" id="callback" style="background:none;border:0;border-top:1px solid var(--line);text-align:left;cursor:pointer;width:100%"><span><b>Talk to a person</b><div class="sub">Request a callback from our care team</div></span><span>›</span></button>
+      <a class="li" href="#/network"><span><b>Check network status</b><div class="sub">Live status for every Seattle neighborhood</div></span><span>›</span></a></div></section></div>`, { title: "Help" });
+  notice(h);
+  const log = document.getElementById("log");
+  const render = () => { log.innerHTML = chat.map(bubble).join(""); bindActs(); log.lastElementChild?.scrollIntoView({ block: "nearest" }); };
+  const bindActs = () => {
+    log.querySelectorAll("[data-confirm]").forEach((b) => (b.onclick = async () => {
+      b.disabled = true;
+      const a = chat[+b.dataset.m].actions.find((x) => x.id === b.dataset.confirm);
+      try { const r = await api("/api/care/confirm", { body: { action_id: a.id } }); a.done = "Done"; chat.push({ who: "bot", text: r.done }); }
+      catch (e) { a.done = "Expired"; chat.push({ who: "bot", text: e.message }); }
+      render();
+    }));
+    log.querySelectorAll("[data-skip]").forEach((b) => (b.onclick = () => { chat[+b.dataset.m].actions.find((x) => x.id === b.dataset.skip).done = "Skipped"; render(); }));
+  };
+  const send = async (q) => {
+    if (!q.trim()) return;
+    const history = chat.filter((m) => m.text).slice(-6).map((m) => ({ who: m.who, text: m.text }));
+    chat.push({ who: "me", text: q }, { who: "bot", text: "Checking your places and account…" });
+    render();
+    try { const r = await api("/api/care/concierge", { body: { question: q, history } }); Object.assign(chat[chat.length - 1], { text: r.answer, actions: r.actions, steps: r.steps, by: r.by }); }
+    catch (e) { chat[chat.length - 1].text = e.message; }
+    render();
+  };
+  bindActs();
+  document.querySelectorAll(".prompts button").forEach((b) => (b.onclick = () => send(b.textContent)));
+  document.getElementById("ask").onsubmit = (e) => { e.preventDefault(); const q = document.getElementById("q"); send(q.value); q.value = ""; };
+  document.getElementById("callback").onclick = () => toast("Demo app", "A real app would book a callback here.");
+  const vmsg = document.getElementById("vmsg");
+  UI.micButton(document.getElementById("mic"), "/api/public/voice", (r) => {
+    const q = document.getElementById("q"); q.value = r.text; q.focus();
+    vmsg.hidden = false; vmsg.textContent = r.text ? "Check the text, then tap send." : "We didn't catch that. Please try again or type.";
+  }, (e) => { vmsg.hidden = false; vmsg.textContent = e; });
+}
+
+async function shop() {
+  view.html = shell("", `<div class="page" style="padding-top:12px">
+    <section class="perk"><b>Upgrade-ready</b><span>See phones and plans that work with your account. Demo store: nothing can be bought here.</span></section>
+    <div class="tiles">${[["phone", "Phones", "Latest Android and iPhone models"], ["watch", "Watches and tablets", "Add a connected device line"], ["router", "Home Internet", "Check availability at your Home"], ["gift", "Accessories", "Cases, chargers and more"]]
+      .map(([k, t, s]) => `<div class="tilec"><span class="ic">${ic(k)}</span><b>${esc(t)}</b><span class="small muted">${esc(s)}</span></div>`).join("")}</div>
+    <section class="card"><h2>Plans</h2><div class="list">
+      <div class="li"><span><b>Northstar Unlimited Plus</b><div class="sub">Your current plan</div></span><span class="pill ok plain">Current</span></div>
+      <div class="li"><span><b>Northstar Unlimited Max</b><div class="sub">More hotspot and premium data</div></span><span class="small muted">Demo</span></div>
+      <div class="li"><span><b>Northstar Essentials</b><div class="sub">Unlimited with a lower price</div></span><span class="small muted">Demo</span></div></div></section></div>`, { title: "Shop", back: "#/home" });
+  guard(async () => notice(await api("/api/care/home")));
+}
+
+const voice = (() => {
+  const S = { open: false, on: false, state: "idle", heard: "", answer: "", actions: [], history: [], flow: [], misses: 0, mic: null, audio: null, by: "" };
+  const END = /^(stop|bye|goodbye|that'?s all|that is all|thanks?,? (that'?s all|bye)|nothing else|no thanks?)\b/i;
+  const STATUS = { idle: "Tap the mic and talk, or type below", listening: "Listening…", hearing: "Understanding…", thinking: "Working on it…", speaking: "Speaking… tap the orb to interrupt" };
+  const CHIPS = ["Test my connection", "Any problems near me?", "What's my bill?", "Report a problem", "Turn on Wi-Fi Calling"];
+  const GUESS = [[/connect|signal|data|speed|internet|slow|test/i, "Testing your connection"], [/report|complain/i, "Preparing your report"],
+    [/bill|pay|balance|due|plan/i, "Looking up your bill"], [/credit|refund/i, "Checking your credits"],
+    [/outage|down|problem|issue|service|near|area|\b9\d{4}\b/i, "Checking the network at your places"],
+    [/open|go to|show|take me/i, "Opening the page"], [/^(yes|yeah|yep|sure|ok|okay|go ahead|do it|confirm|send it)/i, "Doing what you said yes to"],
+    [/wi-?fi|data saver|setting/i, "Preparing the setting change"]];
+  let root = null;
+  const page = () => (location.hash.replace(/^#\/?/, "") || "home").split("/")[0];
+  const MIC24 = UI.MIC.replace('width="14" height="14"', 'width="20" height="20"');
+
+  function mount() {
+    if (root) return;
+    root = document.createElement("div");
+    root.className = "va";
+    root.innerHTML = `<button class="va-launch" id="valaunch" aria-label="Open the voice assistant"><span class="orb sm"><i></i></span><b>Ask</b></button>
+      <div class="va-sheet" id="vasheet" hidden role="dialog" aria-label="Northstar assistant">
+        <div class="va-top"><button class="va-ic" id="vaclose" aria-label="Close the assistant">✕</button><span class="va-model" id="vamodel"></span>
+          <button class="va-ic va-mic" id="vamic" aria-label="Talk">${MIC24}</button></div>
+        <button class="va-orbbtn" id="vaorb" aria-label="Talk"><span class="orb" id="vaorbi"><i></i></span></button>
+        <div class="va-say" id="vasay" aria-live="polite"></div>
+        <div class="va-status" id="vastatus" aria-live="polite"></div>
+        <ol class="va-flow" id="vaflow"></ol>
+        <div class="va-acts" id="vaacts"></div>
+        <form class="va-ask" id="vaask"><span class="va-clip">${ic("spark", 16)}</span><input id="vaq" placeholder="Ask me anything" aria-label="Ask the assistant" autocomplete="off">
+          <button class="va-send" aria-label="Send">${ic("send", 16)}</button></form>
+        <div class="va-chips" id="vachips">${CHIPS.map((c) => `<button type="button">${esc(c)}</button>`).join("")}</div>
+      </div>`;
+    document.body.appendChild(root);
+    const $ = (id) => root.querySelector("#" + id);
+    $("valaunch").onclick = () => { S.open = true; paint(); start(); };
+    $("vaclose").onclick = () => { end(); S.open = false; paint(); };
+    $("vamic").onclick = $("vaorb").onclick = tap;
+    $("vaask").onsubmit = (e) => { e.preventDefault(); const q = $("vaq").value.trim(); $("vaq").value = ""; if (q) typed(q); };
+    $("vachips").querySelectorAll("button").forEach((b) => (b.onclick = () => typed(b.textContent)));
+    S.status = () => api("/api/care/voice/status").then((v) => { $("vamodel").textContent = `${v.think === "rules" ? "Offline rules" : "Meta Muse Spark"} · ${v.speak === "browser" ? "browser voice" : "Gemini voice"}`; }).catch(() => {});
+  }
+  function paint() {
+    if (!root) return;
+    const $ = (id) => root.querySelector("#" + id);
+    $("vasheet").hidden = !S.open;
+    $("valaunch").hidden = S.open;
+    root.classList.toggle("open", S.open);
+    root.classList.toggle("compact", !!(S.heard || S.answer));
+    $("vaorbi").className = "orb " + S.state;
+    $("vamic").classList.toggle("on", S.state === "listening");
+    $("vamic").setAttribute("aria-label", S.on ? "Stop talking" : "Talk");
+    $("vasay").innerHTML = S.answer ? `${S.heard ? `<span class="va-heard">“${esc(S.heard)}”</span>` : ""}<span>${esc(S.answer)}</span>`
+      : S.heard ? `<span class="va-heard">“${esc(S.heard)}”</span>`
+      : `Hi ${esc(S.name || "there")}! I'm your Northstar assistant, <b>ready</b> <span class="fade">to check your network and run the app for you.</span>`;
+    $("vastatus").textContent = STATUS[S.state];
+    $("vaflow").innerHTML = S.flow.map((f) => `<li class="${f.state}"><span class="dot" aria-hidden="true"></span>${esc(f.label)}</li>`).join("");
+    $("vaflow").hidden = !S.flow.length;
+    $("vaacts").innerHTML = S.actions.map((a) => `<div class="act"><b>${esc(a.label)}</b>${a.done ? `<span class="pill ok">${esc(a.done)}</span>` :
+      `<div class="btns"><span class="small muted">Say “yes” or</span><button class="b sm" data-vconfirm="${esc(a.id)}">Confirm</button></div>`}</div>`).join("");
+    $("vaacts").querySelectorAll("[data-vconfirm]").forEach((b) => (b.onclick = async () => {
+      const a = S.actions.find((x) => x.id === b.dataset.vconfirm);
+      try { const r = await api("/api/care/confirm", { body: { action_id: a.id } }); a.done = "Done"; S.answer = r.done; route(); }
+      catch (e) { a.done = "Expired"; S.answer = e.message; }
+      paint();
+    }));
+  }
+  function set(state) { S.state = state; paint(); }
+  function step(label) { S.flow.forEach((f) => f.state === "now" && (f.state = "done")); if (label) S.flow.push({ label, state: "now" }); paint(); }
+
+  async function start() {
+    if (!S.model) { S.model = true; S.status().catch(() => (S.model = false)); }
+    if (!S.name) api("/api/care/home").then((h) => { S.name = h.account.first_name; paint(); }).catch(() => {});
+    paint();
+  }
+  async function tap() {
+    if (S.state === "speaking") { S.tok = (S.tok || 0) + 1; quiet(); return hear(); }
+    if (S.state === "listening") { S.mic && S.mic.stop(); return; }
+    if (S.on) return end();
+    S.on = true; S.misses = 0; S.heard = ""; S.answer = ""; S.actions = []; S.flow = [];
+    return hear();
+  }
+  function end() {
+    S.tok = (S.tok || 0) + 1;
+    S.on = false; quiet();
+    if (S.mic) { S.mic.cancel(); S.mic = null; }
+    S.flow.forEach((f) => f.state === "now" && (f.state = "done"));
+    set("idle");
+  }
+  function quiet() {
+    S.speech = (S.speech || 0) + 1;
+    if (S.audio) { S.audio.pause(); S.audio = null; }
+    if (window.speechSynthesis) speechSynthesis.cancel();
+  }
+
+  async function hear() {
+    if (!S.on) return;
+    const tok = S.tok, again = () => tok === S.tok && hear();
+    if (!S.flow.length) step("Listening");
+    set("listening");
+    let wav;
+    try {
+      S.mic = await UI.listen({ onLevel: (v) => root.querySelector("#vaorbi").style.setProperty("--lvl", v.toFixed(2)) });
+      wav = await S.mic.result;
+    } catch (e) { S.answer = e.message || "Microphone not available."; S.flow = []; S.on = false; return set("idle"); }
+    S.mic = null;
+    if (!S.on || tok !== S.tok) return;
+    if (!wav) { S.flow = []; return ++S.misses >= 2 ? end() : (await speak("I'm listening. What can I do for you?"), again()); }
+    S.flow = [{ label: "Heard you", state: "done" }]; step("Understanding your words"); set("hearing");
+    let text = "";
+    try { text = (await UI.upload("/api/public/voice", wav, "audio/wav")).text || ""; }
+    catch (e) { S.answer = e.message; return end(); }
+    if (!text.trim()) { S.flow = []; return ++S.misses >= 2 ? end() : (await speak("Sorry, I didn't catch that. Could you say it again?"), again()); }
+    S.misses = 0;
+    if (END.test(text.trim())) { S.heard = text; S.answer = "Okay. Tap the mic whenever you need me."; step(""); await speak(S.answer); return end(); }
+    await ask(text);
+    again();
+  }
+  async function typed(q) {
+    S.tok = (S.tok || 0) + 1;
+    if (S.state === "listening" && S.mic) { S.mic.cancel(); S.mic = null; }
+    quiet();
+    S.flow = []; await ask(q);
+    if (S.on) hear(); else set("idle");
+  }
+  async function ask(text) {
+    S.heard = text; S.answer = ""; S.actions = [];
+    step((GUESS.find(([re]) => re.test(text)) || [, "Finding the answer"])[1]); set("thinking");
+    try {
+      const r = await api("/api/care/voice/turn", { body: { text, history: S.history.slice(-8), page: page(), speak: false } });
+      S.history.push({ who: "me", text }, { who: "bot", text: r.answer });
+      chat.push({ who: "me", text }, { who: "bot", text: r.answer, actions: r.actions, steps: r.steps, by: r.by });
+      S.flow.pop();
+      for (const st of r.steps || []) S.flow.push({ label: st.label, state: "done" });
+      S.answer = r.answer; S.actions = r.actions || [];
+      S.by = r.by;
+      for (const u of r.ui || []) apply(u);
+      step("Speaking");
+      await speak(r.answer);
+      step("");
+    } catch (e) { S.answer = e.message; step(""); await speak("Sorry, something went wrong. Please try again."); }
+  }
+
+  function apply(u) {
+    if (u.type === "navigate") {
+      if (u.page === "network" && u.place) ui.place = u.place;
+      if (u.page === "report" && u.place) ui.report = { ...ui.report, place: u.place };
+      const hash = "#/" + u.page + (u.page === "network" && u.place ? "/" + u.place : "");
+      if (location.hash !== hash) location.hash = hash; else route();
+    } else if (u.type === "refresh") route();
+  }
+
+  function sentences(text) {
+    const parts = text.match(/[^.!?]+[.!?]+["')]*\s*|[^.!?]+$/g) || [text];
+    const out = [];
+    for (const p of parts.map((x) => x.trim()).filter(Boolean)) {
+      if (out.length > 1 && (out[out.length - 1] + " " + p).length < 160) out[out.length - 1] += " " + p;
+      else out.push(p);
+    }
+    return out;
+  }
+  async function speak(text) {
+    set("speaking");
+    const id = (S.speech = (S.speech || 0) + 1);
+    if (S.browserVoice) { await new Promise((z) => browserSay(text, z)); return done(id); }
+    const parts = sentences(text);
+    const clips = parts.map((t) => fetch("/api/care/voice/speak", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ text: t }) })
+      .then((r) => (r.ok ? r.blob() : Promise.reject(r.status))).catch((e) => ({ failed: e })));
+    for (let k = 0; k < parts.length; k++) {
+      if (id !== S.speech || S.state !== "speaking") return;
+      const clip = await clips[k];
+      if (id !== S.speech || S.state !== "speaking") return;
+      if (clip.failed !== undefined) {
+        if (clip.failed === 503) S.browserVoice = true;
+        await new Promise((z) => browserSay(parts.slice(k).join(" "), z));
+        break;
+      }
+      await new Promise((z) => {
+        const url = URL.createObjectURL(clip);
+        S.audio = new Audio(url);
+        S.audio.onended = S.audio.onerror = () => { URL.revokeObjectURL(url); z(); };
+        S.audio.play().catch(() => z());
+      });
+    }
+    done(id);
+  }
+  function done(id) { if (id === S.speech && S.state === "speaking") set(S.on ? "listening" : "idle"); }
+  function browserSay(text, fin) {
+    if (!window.speechSynthesis) return fin();
+    let over = false;
+    const once = () => { if (!over) { over = true; clearTimeout(guard); fin(); } };
+    const guard = setTimeout(once, 2500 + text.split(/\s+/).length * 450);
+    const u = new SpeechSynthesisUtterance(text);
+    const vs = speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en"));
+    u.voice = vs.find((v) => /natural|online|google us/i.test(v.name)) || vs[0] || null;
+    u.rate = 1.02; u.onend = u.onerror = once;
+    speechSynthesis.speak(u);
+  }
+
+  return { show: (yes) => { mount(); root.hidden = !yes; }, end: () => root && (end(), (S.open = false), paint()) };
+})();
+
+route();

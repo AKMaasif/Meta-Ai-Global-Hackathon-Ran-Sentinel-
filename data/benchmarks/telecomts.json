@@ -1,0 +1,149 @@
+{
+  "windows": 32000,
+  "train": 25600,
+  "test": 6400,
+  "validation": 6400,
+  "anomaly_share": 0.0386,
+  "channels": [
+    "DL_BLER",
+    "DL_MCS",
+    "DL_NumberOfPackets",
+    "Estimated_UL_Buffer",
+    "PRB_Utilization_DL",
+    "PRB_Utilization_UL",
+    "PRBs_DL_Current",
+    "PRBs_UL_Current",
+    "RSRP",
+    "RX_Bytes",
+    "TX_Bytes",
+    "UL_BLER",
+    "UL_MCS",
+    "UL_NPRB",
+    "UL_NumberOfPackets",
+    "UL_SNR"
+  ],
+  "features_per_window": 278,
+  "anomaly_types": {
+    "Jamming": 279,
+    "High Network Congestion (Gradual Buildup)": 93,
+    "Co-Channel Interference (Severe)": 114,
+    "Faulty RF Filters (Temporal)": 100,
+    "Doppler Shift (Severe)": 86,
+    "Resource Allocation Bugs": 60,
+    "Antenna Failure": 107,
+    "Co-Channel Interference (Mild)": 146,
+    "High Network Congestion (Sudden Spike)": 48,
+    "Faulty Handover Algorithm (Too Frequent)": 64,
+    "Buffer Overflow (Gradual Buildup)": 138
+  },
+  "unsupervised": {
+    "selected": "mahalanobis_context",
+    "selected_by": "best PR-AUC on the validation split (not test)",
+    "threshold": "99th percentile of normal fitting windows (1% false-alarm target)",
+    "detectors": {
+      "isolation_forest_raw": {
+        "validation_pr_auc": 0.1516,
+        "test": {
+          "precision": 0.4021,
+          "recall": 0.1579,
+          "f1": 0.2267,
+          "false_alarm_rate": 0.0094,
+          "roc_auc": 0.7618,
+          "pr_auc": 0.2021
+        }
+      },
+      "isolation_forest_context": {
+        "validation_pr_auc": 0.0841,
+        "test": {
+          "precision": 0.1343,
+          "recall": 0.0364,
+          "f1": 0.0573,
+          "false_alarm_rate": 0.0094,
+          "roc_auc": 0.7741,
+          "pr_auc": 0.0989
+        }
+      },
+      "pca_reconstruction_context": {
+        "validation_pr_auc": 0.5348,
+        "test": {
+          "precision": 0.5928,
+          "recall": 0.4656,
+          "f1": 0.5215,
+          "false_alarm_rate": 0.0128,
+          "roc_auc": 0.9064,
+          "pr_auc": 0.5716
+        }
+      },
+      "mahalanobis_context": {
+        "validation_pr_auc": 0.6803,
+        "test": {
+          "precision": 0.6348,
+          "recall": 0.5911,
+          "f1": 0.6122,
+          "false_alarm_rate": 0.0137,
+          "roc_auc": 0.9185,
+          "pr_auc": 0.6845
+        }
+      }
+    },
+    "selected_recall_by_type": {
+      "Antenna Failure": 1.0,
+      "Buffer Overflow (Gradual Buildup)": 1.0,
+      "Co-Channel Interference (Mild)": 0.447,
+      "Co-Channel Interference (Severe)": 0.64,
+      "Doppler Shift (Severe)": 0.214,
+      "Faulty Handover Algorithm (Too Frequent)": 0.364,
+      "Faulty RF Filters (Temporal)": 0.789,
+      "High Network Congestion (Gradual Buildup)": 1.0,
+      "High Network Congestion (Sudden Spike)": 0.667,
+      "Jamming": 0.145,
+      "Resource Allocation Bugs": 0.909
+    }
+  },
+  "supervised_gbt": {
+    "precision": 1.0,
+    "recall": 0.9433,
+    "f1": 0.9708,
+    "false_alarm_rate": 0.0,
+    "roc_auc": 0.9989,
+    "pr_auc": 0.9927
+  },
+  "root_cause": {
+    "note": "10 synthetic types; Jamming excluded as in the TelecomTS paper",
+    "accuracy": 0.9896,
+    "macro_f1": 0.9894,
+    "per_type_f1": {
+      "Antenna Failure": 1.0,
+      "Buffer Overflow (Gradual Buildup)": 0.9846,
+      "Co-Channel Interference (Mild)": 0.987,
+      "Co-Channel Interference (Severe)": 1.0,
+      "Doppler Shift (Severe)": 1.0,
+      "Faulty Handover Algorithm (Too Frequent)": 1.0,
+      "Faulty RF Filters (Temporal)": 1.0,
+      "High Network Congestion (Gradual Buildup)": 0.9697,
+      "High Network Congestion (Sudden Spike)": 1.0,
+      "Resource Allocation Bugs": 0.9524
+    },
+    "train_windows": 764,
+    "test_windows": 192,
+    "sentinel_causes": {
+      "accuracy": 0.9888,
+      "macro_f1": 0.9745,
+      "test_windows": 179,
+      "mapping": {
+        "Antenna Failure": "hardware_fault",
+        "Faulty RF Filters (Temporal)": "hardware_fault",
+        "Co-Channel Interference (Mild)": "external_interference",
+        "Co-Channel Interference (Severe)": "external_interference",
+        "Jamming": "external_interference",
+        "High Network Congestion (Gradual Buildup)": "capacity_congestion",
+        "High Network Congestion (Sudden Spike)": "capacity_congestion"
+      }
+    }
+  },
+  "dataset": "TelecomTS (AliMaatouk/TelecomTS), MIT licence",
+  "citation": "Feng et al., TelecomTS, ICML 2026, arXiv:2510.06063",
+  "generated_at": "2026-10-28T06:51:37+00:00",
+  "limit": null,
+  "runtime_s": 24.3
+}
