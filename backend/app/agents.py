@@ -146,6 +146,20 @@ def _call_tool(ctx: AgentContext, name: str, args: dict) -> dict:
         return {"error": str(e), "note": "evidence missing; do not assume a value"}
 
 
+FIELD_MIN_TOOLS = 5
+
+
+def _too_early_to_ask(ctx: AgentContext) -> str:
+    ev = ctx.evidence()
+    failed = any(e["result"] is None for e in ev)
+    if failed or ctx.tool_calls_used >= FIELD_MIN_TOOLS or ctx.tool_calls_used >= ctx.tool_budget - 1:
+        return ""
+    ran = {e["tool"] for e in ev}
+    left = [t for t in ("get_kpi_window", "get_alarm_history", "get_cell_configuration", "run_diagnostic_check") if t not in ran]
+    return ("not yet: a field visit is expensive. Use the data tools first" + (f" ({', '.join(left)})" if left else "") +
+            ". Running tilt vs plan is in get_cell_configuration; far-user share is in get_kpi_window.")
+
+
 def _evidence_brief(ctx: AgentContext, limit: int = 2500) -> str:
     items = []
     for e in ctx.evidence():
@@ -196,6 +210,10 @@ def investigate(ctx: AgentContext, instruction: str, requested_checks: list[str]
                 args = json.loads(tc["arguments"] or "{}")
             except json.JSONDecodeError:
                 args = {}
+            if tc["name"] == "request_evidence" and args.get("ask") and (why_not := _too_early_to_ask(ctx)):
+                messages.append({"role": "tool", "tool_call_id": tc["id"], "content": json.dumps({"error": why_not})})
+                ctx.trace("investigator", "field_request_refused", {"reason": why_not})
+                continue
             if tc["name"] == "request_evidence" and args.get("ask"):
                 ctx.incident["_ask"] = {"ask": str(args["ask"])[:300], "why": str(args.get("why", ""))[:300], "by": "investigator"}
                 ctx.trace("investigator", "evidence_requested", ctx.incident["_ask"])

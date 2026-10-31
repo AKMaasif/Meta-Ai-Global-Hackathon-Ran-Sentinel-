@@ -122,7 +122,7 @@ Nothing to set up. `Store` creates `data/sentinel.db` and its tables on first st
 ## 7. Tests
 
 ```powershell
-python -m pytest -q                      # 124 tests, about 3 minutes, no key or network needed
+python -m pytest -q                      # 125 tests, about 3 minutes, no key or network needed
 ```
 
 Live refresh in a real browser. One-time setup, in the project folder:

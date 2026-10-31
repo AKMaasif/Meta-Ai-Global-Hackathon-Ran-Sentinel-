@@ -51,7 +51,7 @@ No backend code changed in this task.
 
 | Test | Result | Where it ran |
 | --- | --- | --- |
-| `python -m pytest -q` | **124 passed**, 177 s | cloud copy (Linux), 2026-10-30, after the verified-investigation work |
+| `python -m pytest -q` | **125 passed**, 189 s | cloud copy (Linux), 2026-10-30, after the verified-investigation work |
 | `python -m pytest -q` | **81 passed**, 6 warnings, 198.7 s | cloud copy (Linux), after the frontend changes |
 | `node scripts/check_live_refresh.js` | **12 of 12 PASS** | cloud copy, against a freshly started app with sign-in read from `.env` (2026-10-30). Also checked: clear messages for app not running, missing password, wrong password |
 | `py scripts\audit_agents.py` | **all 15 checks PASS**, "All agents passed live." | your PC with your Meta key, before this task (no agent code changed since) |

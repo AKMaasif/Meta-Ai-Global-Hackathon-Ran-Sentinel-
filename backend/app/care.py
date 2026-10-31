@@ -576,7 +576,10 @@ class Care:
                 out, meta = provider.chat(msgs, tools=tools, agent="voice_agent" if voice else "care_concierge",
                                           models=[self.sen.s.primary_model, self.sen.s.fallback_model])
                 if not out["tool_calls"]:
-                    d = agents.parse_json(out["content"])
+                    try:
+                        d = agents.parse_json(out["content"])
+                    except (ValueError, json.JSONDecodeError):
+                        d = {"answer": (out["content"] or "").strip()}
                     answer = str(d.get("answer", "")).strip()
                     if not answer or agents.FORBIDDEN.search(answer):
                         raise ProviderError("answer empty or not customer-safe")

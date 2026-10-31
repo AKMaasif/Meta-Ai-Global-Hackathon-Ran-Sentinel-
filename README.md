@@ -223,7 +223,7 @@ py scripts\benchmark_telecomts.py --features data\telecomts_features.csv.gz     
 
 After the full investigation, the correct root cause ranked first in 97.9% of simulator runs. Re-run this benchmark with `py scripts\benchmark_simulator.py`.
 
-`py scripts\eval_investigation.py` scores the whole verified investigation against the injected faults (add `--live` for the Muse Spark agents). Offline: 11 of 11 incidents correct and verified at severity 2, 12 of 12 at severity 1, and no wrong diagnosis passed the verifier.
+`py scripts\eval_investigation.py` scores the whole verified investigation against the injected faults (add `--live` for the Muse Spark agents). Offline: 11 of 11 incidents correct and verified at severity 2, 12 of 12 at severity 1, and no wrong diagnosis passed the verifier. Live on Muse Spark (2026-10-31, severity 2): 11 of 11 diagnosed correctly, `wrong_but_verified` 0; 8 verified, and the 3 overshoot cases paused to ask the field before running the data checks. The investigator now has to use the data tools before it may ask the field.
 
 ## Honest limits
 
@@ -237,7 +237,7 @@ After the full investigation, the correct root cause ranked first in 97.9% of si
 - **Support labels:** hypothesis support levels describe evidence strength, not calibrated probabilities.
 - **Verified investigation:** measured offline only so far; run `eval_investigation.py --live` for the Muse Spark agents. Resume covers model API failures; restarting the server resets the demo.
 - **Voice agent:** spoken replies use Gemini TTS (Google), because Meta has no text-to-speech model yet; without a Google key the browser voice is used. Real-speech accuracy and latency are not yet measured.
-- **Reasoning effort:** `AGENT_EFFORT` is optional; `scripts/check_effort.py` shows whether the Meta API accepts it.
+- **Reasoning effort:** the Meta API accepts every level (minimal to max) on Muse Spark 1.3 (`check_effort.py`, 2026-10-31). On a simple RCA question, minimal was right in 1.8 s with 134 tokens, against 3.2 s and 453 tokens with no setting. `AGENT_EFFORT` stays optional.
 
 ## Tests
 
@@ -245,7 +245,7 @@ After the full investigation, the correct root cause ranked first in 97.9% of si
 python -m pytest -q
 ```
 
-124 tests cover the safety rules, M-Plane rollback, detection (no false alerts on a normal day; every fault detected), all five fault scenarios end to end, and the Muse Spark code path. The Muse Spark tests use a scripted stand-in for the API, covering tool calls, the repair loop, the evidence loop, the customer-text filter, model fallback and full outage. Further tests cover:
+125 tests cover the safety rules, M-Plane rollback, detection (no false alerts on a normal day; every fault detected), all five fault scenarios end to end, and the Muse Spark code path. The Muse Spark tests use a scripted stand-in for the API, covering tool calls, the repair loop, the evidence loop, the customer-text filter, model fallback and full outage. Further tests cover:
 - the FCC check, the ZIP-aware assistant, the reviewer and reporter agents, and the TelecomTS pipeline;
 - the SAM and voice request formats, against a mock HTTP server;
 - photo evidence and the voice-intent hints;

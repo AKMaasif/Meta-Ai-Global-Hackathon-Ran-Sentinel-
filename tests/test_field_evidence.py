@@ -52,17 +52,27 @@ def test_answer_needs_text_and_an_open_request(sentinel):
 
 
 def test_model_investigator_can_request_evidence():
+    ask = ("request_evidence", '{"ask": "Photograph the feeder connectors", "why": "hardware or interference"}')
+    data = [("get_kpi_window", '{"cell_id": "SEA-RAN-001", "metrics": ["prb_util", "sinr_db"]}'),
+            ("get_alarm_history", '{"cell_id": "SEA-RAN-001"}'),
+            ("get_cell_configuration", '{"cell_id": "SEA-RAN-001"}'),
+            ("run_diagnostic_check", '{"cell_id": "SEA-RAN-001", "check": "vswr_and_power_readback"}'),
+            ("get_kpi_window", '{"cell_id": "SEA-RAN-001", "metrics": ["drop_rate"]}')]
+
     class Asker(ScriptedLLM):
+        script = [ask] + data + [ask]
+
         def chat(self, messages, tools=None, agent="", models=None):
-            if agent == "investigator":
+            if agent == "investigator" and self.script:
                 self.calls.append(agent)
-                assert any(t["function"]["name"] == "request_evidence" for t in tools)
-                return {"content": "", "tool_calls": [{"id": "r1", "name": "request_evidence", "arguments":
-                        '{"ask": "Photograph the feeder connectors", "why": "hardware or interference"}'}]}, {"agent": agent, "ok": True}
+                name, args = self.script.pop(0)
+                return {"content": "", "tool_calls": [{"id": f"r{len(self.script)}", "name": name, "arguments": args}]}, \
+                    {"agent": agent, "ok": True}
             return super().chat(messages, tools, agent, models)
     sen = make(Asker())
     sen.inject("SEA-RAN-001", "hardware", 2)
     inc = run_until(sen, "SEA-RAN-001")
+    assert any(l["event"] == "field_request_refused" for l in sen.store.ledger(inc["id"]))
     assert inc["status"] == "AWAITING_EVIDENCE"
     assert inc["evidence_requests"][0]["by"] == "investigator" and "feeder" in inc["evidence_requests"][0]["ask"]
 

@@ -143,3 +143,13 @@ def test_spoken_yes_is_instant_and_questions_still_go_to_the_model(sentinel):
     assert c.concierge("Yes please", voice=True)["by"] == "instant" and c.prefs["wifi_calling"] is True
     sentinel.provider = VoiceDouble([_final("Your bill is $162, due November 8.")])
     assert c.concierge("Why is my bill so high this month and when is it due?", voice=True)["by"] == "muse-spark-1.3"
+
+
+def test_plain_text_reply_is_used_without_json(sentinel):
+    c = Care(sentinel)
+    sentinel.provider = VoiceDouble([
+        _calls(("propose_action", {"type": "report", "place": "work", "issue": "slow data"})),
+        {"content": "I can report slow data at Work for you. Shall I send it?", "tool_calls": []},
+    ])
+    r = c.concierge("Report the problem, my data is slow at work", voice=True)
+    assert r["by"] == "muse-spark-1.3" and r["answer"].startswith("I can report")

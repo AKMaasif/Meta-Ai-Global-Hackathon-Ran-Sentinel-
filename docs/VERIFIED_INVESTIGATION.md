@@ -120,8 +120,9 @@ py scripts\eval_investigation.py --severity 1     # mild faults, harder to tell 
 For each fault type on three cells it reports whether the diagnosis matches the injected fault (the simulator's ground truth, never
 shown to the agents), whether the verifier passed it and on which attempt, playbook coverage and fact checks. The key number is
 `wrong_but_verified`: a wrong diagnosis that got through the verifier. Offline (2026-10-30): 11 of 11 opened incidents diagnosed
-correctly at severity 2 and 12 of 12 at severity 1, all verified on the first attempt, `wrong_but_verified` 0. The live run is not
-yet measured.
+correctly at severity 2 and 12 of 12 at severity 1, all verified on the first attempt, `wrong_but_verified` 0. Live on Muse Spark (2026-10-31, severity 2): 11 of 11 correct,
+`wrong_but_verified` 0, 8 verified (4 on the first attempt); the 3 overshoot cases asked the field after 1-2 tool calls. Since then
+`request_evidence` is refused until the investigator has made 5 data calls, used its budget, or a tool has failed.
 
 ## 9. Workshop mapping
 

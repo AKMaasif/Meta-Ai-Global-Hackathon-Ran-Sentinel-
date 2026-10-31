@@ -848,6 +848,8 @@ class Sentinel:
                 inc["trace"].append({"agent": agent, "kind": kind, "data": data, "sim_ts": self.sim.now.isoformat()})
             if kind == "output_rejected":
                 self._log(inc, agent, "output_repair", f"Output failed checks (attempt {data['attempt']}): {'; '.join(data['errors'])[:300]}")
+            if kind == "field_request_refused":
+                self._log(inc, agent, "field_request_refused", "Field visit not requested yet: data tools come first")
         return cb
 
     def _stage(self, inc, stage, status, note):
