@@ -302,6 +302,26 @@ async def photo(iid: str, request: Request, note: str = "", user: dict = Depends
         raise HTTPException(400, str(e))
 
 
+@app.post("/api/incidents/{iid}/attachments")
+async def attachment(iid: str, request: Request, name: str = "", note: str = "", user: dict = Depends(ops_user)):
+    if iid not in sentinel.incidents:
+        raise HTTPException(404, "Incident not found")
+    body = await request.body()
+    mime = (request.headers.get("content-type") or "").split(";")[0].strip()
+    try:
+        return await run_in_threadpool(sentinel.add_attachment, iid, body, mime, name, "Sarah Chen", note)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/files/{did}")
+def field_file(did: str, _: dict = Depends(ops_user)):
+    if did not in sentinel.files:
+        raise HTTPException(404, "File not found")
+    data, mime, name = sentinel.files[did]
+    return Response(data, media_type=mime, headers={"Content-Disposition": f'attachment; filename="{name.encode("ascii", "ignore").decode().replace(chr(34), "") or did}"'})
+
+
 @app.get("/api/photos/{pid}")
 def photo_file(pid: str, _: dict = Depends(ops_user)):
     if pid not in sentinel.photos:

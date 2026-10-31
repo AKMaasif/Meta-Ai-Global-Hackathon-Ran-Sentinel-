@@ -43,7 +43,7 @@ ran-sentinel/
     shared/              ui.js (api, morph, poller), geomap.js, base.css, vendor/
     ops/                 operations console (index.html, app.js, ops.css)
     connect/             customer app
-  scripts/               check_meta.py, audit_agents.py, benchmark_*.py, check_live_refresh.js
+  scripts/               check_meta.py, audit_agents.py, check_field_files.py, benchmark_*.py, check_live_refresh.js
   tests/                 pytest suite
   data/                  sentinel.db (created at start), benchmarks/*.json
   docs/                  this documentation, workflow.mmd
@@ -165,7 +165,7 @@ Benchmarks: `py scripts\benchmark_simulator.py`. For TelecomTS, `pip install hug
 
 ## 9. Verification checklist
 
-- [ ] `python -m pytest -q` reports all tests passed (120 at the time of writing).
+- [ ] `python -m pytest -q` reports all tests passed (129 at the time of writing).
 - [ ] `py scripts\check_meta.py` passes for every model you use.
 - [ ] `py scripts\audit_agents.py` ends with "All agents passed live."
 - [ ] The console shows "Meta Model API" and the clock advances.

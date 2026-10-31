@@ -639,14 +639,44 @@ function evidenceRequestPanel(inc) {
   if (!reqs.length) return "";
   const open = reqs.find((r) => r.status === "open" && inc.status === "AWAITING_EVIDENCE");
   const key = "ev-" + inc.id;
-  const since = open ? (inc.photos || []).filter((p) => p.uploaded >= open.requested_at).length : 0;
+  const files = open ? [...(inc.photos || []).filter((p) => p.uploaded >= open.requested_at).map((p) => ({ ...p, type: "photo", name: p.id + " site photo" })),
+    ...(inc.attachments || []).filter((d) => d.uploaded >= open.requested_at)] : [];
   return `<section class="panel${open ? " decision" : ""}" data-evreq="${inc.id}"><header><h2>Field evidence</h2>${open ? chip("investigation paused", "warn") : chip(reqs.length + " answered", "ok")}</header><div class="body">
     ${reqs.map((r) => `<div class="evreq"><span class="label">${esc(r.id)} · asked by the ${esc(r.by)}</span><p><b>${esc(r.ask)}</b></p><p class="small muted">${esc(r.why)}</p>
-      ${r.answer ? `<p class="small">Answered by ${esc(r.answer.by)} <span class="mono">${esc(r.answer.evidence_id)}</span>: ${esc(r.answer.note)}${r.answer.photos.length ? ` <span class="muted">(${r.answer.photos.length} photo${r.answer.photos.length > 1 ? "s" : ""})</span>` : ""}</p>` : ""}</div>`).join("")}
+      ${r.answer ? `<p class="small">Answered by ${esc(r.answer.by)} <span class="mono">${esc(r.answer.evidence_id)}</span>: ${esc(r.answer.note)}${r.answer.photos.length + (r.answer.documents || []).length ? ` <span class="muted">(${r.answer.photos.length + (r.answer.documents || []).length} attachment${r.answer.photos.length + (r.answer.documents || []).length > 1 ? "s" : ""})</span>` : ""}</p>` : ""}</div>`).join("")}
     ${open ? `<div class="field"><label for="evnote-${inc.id}">What did you find on site?</label><textarea id="evnote-${inc.id}" placeholder="e.g. spectrum analyser shows a narrowband emitter east of the site">${esc(drafts[key] || "")}</textarea></div>
-      <p class="small muted">${since ? `${since} site photo${since > 1 ? "s" : ""} will go with your answer.` : `Optional: add a photo in the Site photos tab first.`} The investigation resumes with everything gathered so far.</p>
-      <div class="row"><button class="btn primary" data-ev="send">Send and resume investigation</button></div><p class="err dmsg" hidden></p>` : ""}
+      <div class="field"><span class="flabel">Attachments <span class="muted">(optional)</span></span>
+        <label class="dropzone" for="evfile-${inc.id}"><input type="file" id="evfile-${inc.id}" accept="${ATTACH_ACCEPT}" multiple hidden>
+          <span><b>Attach files</b><br><span class="small muted">Photo (JPEG, PNG, WebP), CSV, PDF, DOCX or TXT · up to 10 MB each</span></span></label>
+        ${files.length ? `<ul class="attlist">${files.map(attachRow).join("")}</ul>` : ""}
+        <p class="small muted" id="evup-${inc.id}" hidden></p></div>
+      <p class="small muted">Muse Spark reads each file as it is attached. Your note and ${files.length ? `these ${files.length} file${files.length > 1 ? "s" : ""}` : "any files"} go into the investigation, which resumes with everything gathered so far.</p>
+      <div class="row"><button class="btn primary" data-ev="send" data-busy="Sending and resuming…">Send and resume investigation</button></div><p class="err dmsg" hidden></p>` : ""}
   </div></section>`;
+}
+const ATTACH_ACCEPT = ".jpg,.jpeg,.png,.webp,.csv,.pdf,.docx,.txt,image/jpeg,image/png,image/webp,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain";
+function attachRow(f) {
+  const fd = f.findings, kind = f.type === "photo" ? "PHOTO" : (f.kind || "").toUpperCase();
+  const fit = fd ? { yes: ["fits diagnosis", "ok"], no: ["does not fit", "bad"], unclear: ["unclear", "plain"] }[fd.consistent_with_diagnosis] : null;
+  const link = f.type === "photo" ? `/api/photos/${f.id}` : `/api/files/${f.id}`;
+  return `<li><span class="ftype">${esc(kind)}</span><div class="fbody"><a href="${link}" target="_blank" rel="noopener" class="fname">${esc(f.name)}</a>
+    ${fd ? `<span class="small">${esc(fd.summary)}</span>` : `<span class="small muted">${esc((f.errors || []).join("; ") || "stored, not analysed")}</span>`}
+    <span class="small muted">${fd ? esc(fd.by) : ""}${f.evidence_id ? ` · <span class="mono">${esc(f.evidence_id)}</span>` : ""}</span></div>${fit ? chip(fit[0], fit[1]) : ""}</li>`;
+}
+async function attachFiles(id, list) {
+  const status = document.getElementById("evup-" + id), err = document.querySelector(`[data-evreq="${id}"] .dmsg`);
+  busy = true; err.hidden = true;
+  try {
+    for (const [i, f] of [...list].entries()) {
+      status.hidden = false;
+      status.innerHTML = `<span class="spin"></span> Reading ${esc(f.name)} with Muse Spark (${i + 1} of ${list.length})…`;
+      const img = /^image\//.test(f.type);
+      const blob = img ? await shrinkImage(f) : f;
+      await upload(`/api/incidents/${id}/attachments?name=${encodeURIComponent(f.name)}`, blob, img ? "image/jpeg" : (f.type || "application/octet-stream"));
+    }
+    status.hidden = true;
+  } catch (e) { status.hidden = true; err.hidden = false; err.textContent = e.message; }
+  busy = false; refresh();
 }
 function signoffBlock(inc) {
   const v = inc.verification, so = inc.rca_signoff;
@@ -673,6 +703,14 @@ function bindInvestigation(id) {
       } catch (e) { m.hidden = false; m.textContent = e.message; b.disabled = false; }
     }));
   });
+  const fi = document.getElementById("evfile-" + id);
+  if (fi) fi.onchange = () => { if (fi.files.length) attachFiles(id, fi.files); fi.value = ""; };
+  const dz = fi && fi.closest(".dropzone");
+  if (dz) {
+    dz.ondragover = (e) => { e.preventDefault(); dz.classList.add("over"); };
+    dz.ondragleave = () => dz.classList.remove("over");
+    dz.ondrop = (e) => { e.preventDefault(); dz.classList.remove("over"); if (e.dataTransfer.files.length) attachFiles(id, e.dataTransfer.files); };
+  }
   wire(`[data-evreq="${id}"]`, "ev-" + id, `/api/incidents/${id}/evidence`, (b, n) => ({ note: n ? n.value : "" }));
   wire(`[data-rca="${id}"]`, "rca-" + id, `/api/incidents/${id}/rca`, (b, n) => ({ decision: b.dataset.rcad, note: n ? n.value : "" }));
 }
@@ -726,7 +764,8 @@ function decisionPanel(t, inc) {
   else if (open && t.kind === "regulatory") buttons = `<button class="btn primary" data-d="filed">Mark NORS notification filed</button>`;
   else if (open && t.kind === "escalation") buttons = `<button class="btn" data-d="more_info">Run new investigation</button><button class="btn" data-d="close">Close incident</button>`;
   return `<section class="panel decision" data-ticket="${t.id}"><header><h2>${esc(t.department)}</h2>${chip(t.status, t.status === "pending" ? "warn" : ["approved", "done", "closed"].includes(t.status) ? "ok" : "plain")}</header>
-    <div class="body"><span class="label">${kindText}</span><p>${esc(t.recommendation)}</p>
+    <div class="body"><span class="label">${kindText}</span><p class="rec">${esc(t.recommendation)}</p>
+    ${ticketFacts(t)}
     ${t.review ? reviewBlock(t.review) : ""}
     ${t.kind === "escalation" ? briefBlock(inc.escalation_brief) : ""}
     ${t.not_simulated ? `<div class="banner warn">The twin was unavailable, so this plan was not simulated. Review it with extra care.</div>` : ""}
@@ -824,11 +863,29 @@ function bindPhotos(id) {
     } catch (err) { busy = false; btn.disabled = false; btn.textContent = "Add photo"; msg.hidden = false; msg.textContent = err.message; }
   };
 }
+function ticketFacts(t) {
+  const a = t.plan && t.plan.action;
+  if (!a && !t.validation && !t.sandbox) return "";
+  const PARAM = { adjust_tilt: ["Electrical tilt", "°", "tilt_deg"], adjust_tx_power: ["TX power", " dBm", "tx_power_dbm"] }[a && a.type];
+  const before = PARAM && t.sandbox && t.sandbox.changes ? Number(t.sandbox.changes[PARAM[2]]) - Number(a.delta) : null;
+  const rows = [];
+  if (PARAM) rows.push(["Change", `${PARAM[0]} ${a.delta > 0 ? "+" : ""}${a.delta}${PARAM[1]}${before != null && !isNaN(before) ? ` <span class="muted">(${before} → ${before + Number(a.delta)})</span>` : ""}`]);
+  else if (a) rows.push(["Change", "No configuration change"]);
+  if (a && a.cell_id) rows.push(["Cell", `<span class="mono">${esc(a.cell_id)}</span>`]);
+  if (t.validation) {
+    const r = t.validation.rules || [], ok = r.filter((x) => x.status === "PASS").length, n = r.filter((x) => x.status !== "N/A").length;
+    rows.push(["Safety rules", t.validation.passed ? `<span class="okc">${ok}/${n} passed</span>` : `<span class="badc">${esc((t.validation.failed || []).join(", ") || "not passed")}</span>`]);
+  }
+  if (t.sandbox) rows.push(["Twin", `coverage loss ${t.sandbox.coverage_loss_pct}% · PRB ${t.sandbox.before.prb_util}→${t.sandbox.after.prb_util}%`]);
+  if (t.plan && t.plan.rollback && Object.keys(t.plan.rollback).length) rows.push(["Rollback", "automatic if KPIs worsen"]);
+  return `<dl class="tfacts">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>`;
+}
 function reviewBlock(r) {
-  return `<div class="review ${r.verdict}"><span class="label">Second opinion · ${esc(r.by)}</span>
-    <p>${r.verdict === "agree" ? "Agrees with the plan." : "Raised concerns for you to weigh:"}</p>
-    ${r.concerns.length ? `<ul>${r.concerns.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>` : ""}
-    ${r.questions_for_department.length ? `<p class="small muted">Questions: ${r.questions_for_department.map(esc).join(" ")}</p>` : ""}</div>`;
+  const n = r.concerns.length;
+  return `<details class="review ${r.verdict}" ${n && n <= 1 ? "open" : ""}><summary><span class="label">Second opinion · ${esc(r.by)}</span>
+    <span class="rv">${r.verdict === "agree" ? "Agrees with the plan" : `${n} concern${n === 1 ? "" : "s"} to weigh`}</span></summary>
+    ${n ? `<ol>${r.concerns.map((c) => `<li>${esc(c)}</li>`).join("")}</ol>` : ""}
+    ${r.questions_for_department.length ? `<p class="small muted">Questions: ${r.questions_for_department.map(esc).join(" ")}</p>` : ""}</details>`;
 }
 function fccPanel(f) {
   if (!f) return "";

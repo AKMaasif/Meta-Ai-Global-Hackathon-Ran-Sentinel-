@@ -93,6 +93,10 @@ textarea { min-height: 64px; resize: vertical; }
 .btn.primary:hover { background: #0a4347; }
 .btn.danger { color: var(--bad); }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.is-busy, button.is-busy { opacity: .62; cursor: progress; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.spin { width: 13px; height: 13px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; display: inline-block; flex: none; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 2s; } }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .err { color: var(--bad); font-size: 13px; }
 .toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; }

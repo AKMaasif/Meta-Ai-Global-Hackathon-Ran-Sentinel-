@@ -100,6 +100,7 @@ From the work in this project, most recent first:
 
 | Change | Main files |
 | --- | --- |
+| Field evidence files: photo, CSV, PDF, DOCX and TXT attached on the incident page and read by the Field Document Analyst (Muse Spark); `check_field_files.py` live check. RAN Optimisation card shows the change as a facts table with a collapsible second opinion. Every submit button shows a busy state. 129 tests pass | `fielddocs.py`, `agents.py`, `orchestrator.py`, `frontend/ops/`, `frontend/shared/ui.js` |
 | Maveric RF twin wired in: trains on the Seattle cluster, predicts coverage before and after tilt or power changes (MAE 1.26 dB vs the radio model) | `maveric.py`, `twin.py`, `scripts/maveric_setup.py`, [MAVERIC_TWIN.md](MAVERIC_TWIN.md) |
 | Verified investigation from Meta's legal-agent workshop: diagnosis verifier, field-evidence pause and resume, root-cause sign-off, living plan, one tool per turn, checkpoints and resume; investigation eval script; reasoning effort per agent; UL interference threshold fix (mild interference was missed). 120 tests pass | `verify.py`, `workplan.py`, `orchestrator.py`, `agents.py`, `scripts/eval_investigation.py`, [VERIFIED_INVESTIGATION.md](VERIFIED_INVESTIGATION.md) |
 | Customer voice agent: Muse Voice Transcribe + Muse Spark + Gemini TTS, orb UI, instant commands, sentence-by-sentence speech | `care.py`, `providers.py`, `frontend/connect/`, [VOICE_AGENT.md](VOICE_AGENT.md) |

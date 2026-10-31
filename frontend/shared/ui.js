@@ -1,7 +1,40 @@
 const UI = (() => {
   let liveSignal = null;
+  let pressed = null;
+  addEventListener("click", (e) => { const b = e.target.closest && e.target.closest("button"); if (b) pressed = { el: b, at: Date.now() }; }, true);
+  const ING = { Create: "Creating", Send: "Sending", Approve: "Approving", Reject: "Rejecting", Request: "Requesting", Accept: "Accepting",
+    Advance: "Advancing", Clear: "Clearing", Reset: "Resetting", Sign: "Signing", Add: "Adding", Mark: "Marking", Run: "Running",
+    Close: "Closing", Apply: "Applying", Confirm: "Confirming", Pay: "Paying", Turn: "Turning", Dispute: "Disputing", Resume: "Resuming",
+    Pause: "Pausing", Start: "Starting", Submit: "Submitting", Save: "Saving", Upload: "Uploading", Attach: "Attaching", Ask: "Asking", Check: "Checking" };
+  function busyText(b) {
+    if (b.dataset.busy) return b.dataset.busy;
+    const [w, ...rest] = b.textContent.trim().split(/\s+/);
+    return ING[w] ? [ING[w], ...rest].join(" ") + "…" : "Working…";
+  }
+  function claim() {
+    const p = pressed; pressed = null;
+    if (!p || Date.now() - p.at > 1500 || !p.el.isConnected || p.el.classList.contains("is-busy") || p.el.hasAttribute("data-mic") || p.el.hasAttribute("data-nobusy")) return null;
+    const b = p.el, label = busyText(b);
+    b.dataset.label = b.innerHTML; b.style.minWidth = b.offsetWidth + "px";
+    b.classList.add("is-busy"); b.disabled = true; b.setAttribute("aria-busy", "true");
+    b.innerHTML = `<span class="spin" aria-hidden="true"></span>${esc(label)}`;
+    return { b, t0: Date.now() };
+  }
+  async function release(h) {
+    if (!h) return;
+    const wait = 450 - (Date.now() - h.t0);
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    const b = h.b;
+    if (!b.classList.contains("is-busy")) return;
+    b.innerHTML = b.dataset.label; delete b.dataset.label;
+    b.classList.remove("is-busy"); b.disabled = false; b.removeAttribute("aria-busy"); b.style.minWidth = "";
+  }
   async function api(path, opts = {}) {
     const method = opts.method || (opts.body ? "POST" : "GET");
+    const h = method === "GET" ? null : claim();
+    try { return await send(path, opts, method); } finally { release(h); }
+  }
+  async function send(path, opts, method) {
     const res = await fetch(path, {
       method,
       headers: opts.body ? { "Content-Type": "application/json" } : {},
@@ -47,6 +80,7 @@ const UI = (() => {
   const LIVE_ATTR = { DETAILS: ["open"], DIALOG: ["open"] };
   function patch(c, n) {
     if (c.nodeType !== 1) { if (c.nodeValue !== n.nodeValue) c.nodeValue = n.nodeValue; return; }
+    if (c.classList.contains("is-busy")) return;
     const skip = LIVE_ATTR[c.tagName] || [];
     const focused = c === document.activeElement;
     for (const a of [...c.attributes]) if (!n.hasAttribute(a.name) && !skip.includes(a.name)) c.removeAttribute(a.name);
@@ -202,6 +236,10 @@ const UI = (() => {
   }
 
   async function upload(path, blob, type) {
+    const h = claim();
+    try { return await sendRaw(path, blob, type); } finally { release(h); }
+  }
+  async function sendRaw(path, blob, type) {
     const res = await fetch(path, { method: "POST", headers: { "Content-Type": type }, body: blob, credentials: "same-origin" });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {

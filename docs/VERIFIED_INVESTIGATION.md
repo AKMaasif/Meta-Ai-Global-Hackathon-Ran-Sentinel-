@@ -72,8 +72,23 @@ When the evidence rounds run out and the two leading causes still cannot be sepa
 "Sweep the uplink with a spectrum analyser near the site ... Photograph the antenna, feeder cable and connectors". The model
 investigator can also pause on its own with `request_evidence`.
 
-Nothing is planned or routed while it waits. The engineer answers on the incident page, optionally after adding site photos
-(SAM 3.1 + Muse Spark read them). The answer becomes a `field_report` evidence item, and the investigation resumes with
+Nothing is planned or routed while it waits. The engineer answers on the incident page and can attach files (drag and drop or
+browse, up to 10 MB each):
+
+| File | How it is read |
+|---|---|
+| Photo (JPEG, PNG, WebP) | SAM 3.1 marks equipment, Muse Spark vision reads it |
+| CSV (sweep or drive-test export) | columns, row count and min/max/mean/last per numeric column, plus the first 25 rows |
+| PDF | text layer with pypdf, up to 30 pages; a scanned PDF is refused with a hint to photograph the pages |
+| DOCX, TXT | paragraph text |
+
+The app extracts the text (`backend/app/fielddocs.py`) and the Field Document Analyst on Muse Spark reads it against the open
+request and the leading causes. It returns key findings, measured values, the causes the file supports or argues against, and
+whether it fits the diagnosis. Each file becomes its own evidence item (`field_document`) and shows on the card with a
+"fits diagnosis" chip as soon as it is attached. Without a key, a keyword rule fills in. `py scripts\check_field_files.py` checks
+every file type live with your key (add `--file your.pdf` to try your own).
+
+The answer and all files attached since the request become a `field_report` evidence item, and the investigation resumes with
 everything gathered so far. An on-site finding that backs the leading cause can stand in for its confirming check, and the
 verifier says so ("stood in for by the field report"). The field is asked once; a second dead end goes to a person.
 

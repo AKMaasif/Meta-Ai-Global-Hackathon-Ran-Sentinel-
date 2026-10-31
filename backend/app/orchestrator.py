@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 
-from . import agents, regulatory, verify, workplan
+from . import agents, fielddocs, regulatory, verify, workplan
 from .agents import PHOTO_PROMPTS, AgentContext, AgentOutputError
 from .config import Settings
 from .detection import Detector, features
@@ -47,6 +47,7 @@ class Sentinel:
         self._seq = 0
         self._tseq = 0
         self.photos: dict[str, tuple[bytes, str]] = {}
+        self.files: dict[str, tuple[bytes, str, str]] = {}
         self.handover: dict | None = None
         self.acks: dict[str, dict] = {}
         self.executor = ThreadPoolExecutor(max_workers=2)
@@ -97,7 +98,7 @@ class Sentinel:
             "engine": self.provider.label, "customer_status": None, "escalation": None, "repoll_attempts": 0,
             "zip_code": cell.zip_code, "band": cell.band, "kpi_at_detection": row, "resolved_at": None,
             "review": None, "fcc": None, "regulatory_ticket": None, "report": None,
-            "escalation_brief": None, "photos": [], "checklist": [], "verification": None,
+            "escalation_brief": None, "photos": [], "attachments": [], "checklist": [], "verification": None,
             "evidence_requests": [], "rca_signoff": None, "work_plan": None, "checkpoint": None,
         }
         inc["title"] = (f"{_kind_title(det, row)} {cid}" if kind == "network" else f"KPI data missing {cid}")
@@ -287,12 +288,16 @@ class Sentinel:
             raise ValueError("write what you found on site")
         since = req["requested_at"]
         photos = [p for p in inc["photos"] if p["uploaded"] >= since]
+        docs = [d for d in inc.get("attachments", []) if d["uploaded"] >= since]
         eid = self._evidence_cb(inc)("field_report", {"request": req["id"], "by": user}, {
             "source": f"field engineer {user}", "note": note[:1000], "photos": [p["id"] for p in photos],
-            "photo_findings": [p["findings"]["summary"] for p in photos if p.get("findings")]}, None)
+            "photo_findings": [p["findings"]["summary"] for p in photos if p.get("findings")],
+            "documents": [d["id"] for d in docs],
+            "document_findings": [f"{d['name']}: {d['findings']['summary']}" for d in docs if d.get("findings")]}, None)
         with self.lock:
             req.update(status="answered", answer={"by": user, "note": note[:1000], "evidence_id": eid,
-                                                  "photos": [p["id"] for p in photos], "at": self.sim.now.isoformat()})
+                                                  "photos": [p["id"] for p in photos], "documents": [d["id"] for d in docs],
+                                                  "at": self.sim.now.isoformat()})
         self._log(inc, user, "evidence_provided", f"{req['id']} answered by {user} ({eid}): {note[:200]}")
         workplan.mark(inc, _field_step(req["ask"]), "done")
         self._wp(inc, user, "Field report received; re-running the investigation with it")
@@ -608,6 +613,42 @@ class Sentinel:
                   f"{pid} from {user}: " + (f"{len(rec['detections'])} object{'s' if len(rec['detections']) != 1 else ''} found (SAM 3.1); {f['summary'][:160]} "
                                             f"Consistent with diagnosis: {f['consistent_with_diagnosis']}." if f
                                             else "stored without analysis (" + ("; ".join(rec["errors"])[:160] or "no Meta key") + ")"))
+        return rec
+
+    def add_attachment(self, iid: str, data: bytes, mime: str, name: str, user: str, note: str = "") -> dict:
+        if mime in fielddocs.IMAGE_TYPES:
+            return {"type": "photo", **self.add_photo(iid, data, mime, user, note)}
+        inc = self.incidents[iid]
+        doc = fielddocs.extract(data, mime, name)
+        did = f"DOC-{len(self.files) + 1:03d}"
+        self.files[did] = (data, mime or "application/octet-stream", name)
+        cause = ((inc.get("diagnosis") or {}).get("hypotheses") or [{}])[0].get("cause")
+        rec = {"id": did, "type": "document", "name": name[:120], "kind": doc["kind"], "size": len(data),
+               "uploaded": self.sim.now.isoformat(), "by": user, "note": note[:300], "findings": None, "errors": [],
+               "facts": {k: v for k, v in doc.items() if k not in ("text", "kind")}, "excerpt": doc["text"][:600]}
+        if self.provider.offline:
+            rec["findings"] = agents.document_rules(doc, cause)
+        else:
+            ctx = AgentContext(self.provider, self.toolbox, inc, lambda *a: "", lambda *a: None, 0)
+            facts = {"cell": inc["cell_id"], "area": inc["site"], "diagnosis": cause,
+                     "open_request": next((r["ask"] for r in inc["evidence_requests"] if r["status"] == "open"), None),
+                     "engineer_note": note[:300]}
+            try:
+                rec["findings"] = agents.document_findings(ctx, name, doc, facts, [self.s.primary_model, self.s.fallback_model])
+            except (ProviderError, AgentOutputError) as e:
+                rec["errors"].append(f"analysis: {e}")
+                rec["findings"] = agents.document_rules(doc, cause)
+            inc["agent_runs"].extend(ctx.runs)
+        eid = self._evidence_cb(inc)("field_document", {"file": did, "name": name[:120], "by": user},
+                                     {"kind": doc["kind"], "facts": rec["facts"], "findings": rec["findings"], "note": note[:300]}, None)
+        rec["evidence_id"] = eid
+        with self.lock:
+            inc.setdefault("attachments", []).append(rec)
+            self._save(inc)
+        f = rec["findings"]
+        self._log(inc, "field-document", "document_analysed",
+                  f"{did} {name[:60]} from {user} ({doc['kind'].upper()}, {f['by']}): {f['summary'][:200]} "
+                  f"Consistent with diagnosis: {f['consistent_with_diagnosis']}.")
         return rec
 
     def write_handover(self) -> dict:
