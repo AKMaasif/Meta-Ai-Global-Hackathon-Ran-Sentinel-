@@ -70,7 +70,7 @@ class Settings:
     fcc_users_per_site: int = field(default_factory=lambda: _int("FCC_USERS_PER_SITE", 1500))
     db_path: Path = ROOT / "data" / "sentinel.db"
 
-    max_tool_calls: int = 8
+    max_tool_calls: int = 12
     max_evidence_rounds: int = 2
     max_plan_retries: int = 2
     max_verify_refusals: int = 3

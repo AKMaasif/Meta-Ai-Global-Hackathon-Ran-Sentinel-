@@ -90,3 +90,22 @@ def test_engineer_signs_off_or_disputes_the_root_cause(sentinel):
     assert inc["status"] == "AWAITING_DEPARTMENT" and inc["ticket_id"] != tid
     rec = sentinel.sign_off_rca(inc["id"], "Sarah Chen", "confirm", "Agree")
     assert inc["rca_signoff"] == rec and rec["cause"] == inc["diagnosis"]["hypotheses"][0]["cause"]
+
+
+def test_capacity_surge_field_report_with_negations_recovers(sentinel):
+    sentinel.flags["diag_outage"] = True
+    sentinel.flags["red_team"] = True
+    sentinel.inject("SEA-RAN-010", "capacity_surge", 2)
+    inc = run_until(sentinel, "SEA-RAN-010", ticks=8)
+    assert inc["status"] == "AWAITING_EVIDENCE"
+    sentinel.provide_evidence(inc["id"], "Sarah Chen", "Stadium event with a big crowd next to the site. "
+                              "No hardware damage, antenna and connectors look fine.")
+    assert inc["status"] == "AWAITING_DEPARTMENT", inc.get("escalation")
+    assert inc["diagnosis"]["hypotheses"][0]["cause"] == "capacity_congestion"
+    sentinel.sign_off_rca(inc["id"], "Sarah Chen", "confirm")
+    sentinel.decide(inc["ticket_id"], "approve", "Sarah Chen")
+    for _ in range(20):
+        sentinel.tick()
+        if inc["status"] == "RESOLVED":
+            break
+    assert inc["status"] == "RESOLVED"

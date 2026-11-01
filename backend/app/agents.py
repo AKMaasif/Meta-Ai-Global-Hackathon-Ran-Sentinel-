@@ -373,9 +373,17 @@ def _analyse_rules(ctx: AgentContext, rounds_left: int) -> dict:
     if fr:
         text = " ".join([fr["result"].get("note") or ""] + (fr["result"].get("photo_findings") or []) +
                         (fr["result"].get("document_findings") or []))
-        for c, pat in FIELD_WORDS.items():
-            if re.search(pat, text, re.I):
+        pos, neg = {c: 0 for c in FIELD_WORDS}, {c: 0 for c in FIELD_WORDS}
+        for sent in re.split(r"(?<=[.!?;])\s+|\n|,\s*(?=no\b|not\b)", text):
+            denied = re.search(NEGATION, sent, re.I)
+            for c, pat in FIELD_WORDS.items():
+                if re.search(pat, sent, re.I):
+                    (neg if denied else pos)[c] += 1
+        for c in FIELD_WORDS:
+            if pos[c] > neg[c]:
                 add(c, 6, fr)
+            elif neg[c]:
+                add(c, -2, fr)
 
     ranked = sorted(CAUSES, key=lambda c: -score[c])
     top = ranked[0]

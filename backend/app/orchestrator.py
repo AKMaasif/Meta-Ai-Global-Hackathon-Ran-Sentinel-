@@ -199,6 +199,15 @@ class Sentinel:
                         return self._pause(inc, f"{agents.FIELD_ASK[top['cause']]} {agents.FIELD_ASK[second]}",
                                            f"The data cannot separate {top['cause'].replace('_', ' ')} from {second.replace('_', ' ')}.",
                                            "orchestrator")
+                    second = diag["hypotheses"][1] if len(diag["hypotheses"]) > 1 else None
+                    field_ids = {(r.get("answer") or {}).get("evidence_id") for r in inc["evidence_requests"]} - {None}
+                    if field_ids & set(top.get("supporting_evidence") or []) and top["support"] in ("strong", "moderate") and (
+                            second is None or agents.SUPPORT.index(top["support"]) < agents.SUPPORT.index(second["support"])):
+                        self._log(inc, "orchestrator", "field_report_weighed",
+                                  f"Field report received; {top['cause']} leads with {top['support']} support. "
+                                  "Passing it to the verifier instead of escalating.")
+                        diag["enough_evidence"] = True
+                        break
                     self._stage(inc, "analyse", "fail", "not enough evidence")
                     return self.escalate(inc, f"Not enough evidence after {rounds + 1} rounds; top candidate {top['cause']}")
                 self._stage(inc, "analyse", "pass", f"{top['cause']} ({top['support']}), uncertainty {diag.get('uncertainty')}")

@@ -198,7 +198,7 @@ Termination and limits are enforced in code (`config.py`, `agents.py`, `provider
 
 | Guard | Value | Where |
 | --- | --- | --- |
-| Investigator tool calls per incident | 8 (`max_tool_calls`) | `AgentContext.tool_budget`, `_call_tool` |
+| Investigator tool calls per incident | 12 (`max_tool_calls`) | `AgentContext.tool_budget`, `_call_tool` |
 | Investigator model turns | `tool_budget + 2` | `agents.investigate` loop bound |
 | Evidence rounds | 2 extra (`max_evidence_rounds`) | `run_investigation` |
 | Plan attempts | 1 + 2 retries (`max_plan_retries`) | `run_investigation` |
