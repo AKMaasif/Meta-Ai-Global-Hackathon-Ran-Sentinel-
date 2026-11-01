@@ -1,13 +1,13 @@
-# RAN Sentinel: 3-minute demo script
+# RAN Sentinel: guided demo
 
-Record at 1440×900 in a browser at 100% zoom. Start the app with `start.bat`, with a Meta key in `.env`, and sign in to the console before recording. Open the customer app in a second tab. Times are targets. Leave about 10 seconds of slack.
+A three-minute walkthrough of the main features. Use a browser window of about 1440×900 at 100% zoom. Start the app with `start.bat`, with a Meta key in `.env`, and sign in to the console first. Open the customer app in a second tab. Times are a guide.
 
-## Before you record
+## Before you start
 
 - Restart the server so incident numbers start at RNS-2026-001.
 - In Demo controls, check that **Red-team the first plan** is on.
 - Have a site photo (JPG or PNG of an antenna or connector) ready on the desktop.
-- Do one practice run, then restart again.
+- Do one practice run, then restart again so the numbering starts fresh.
 
 ## Script
 
@@ -24,7 +24,7 @@ Record at 1440×900 in a browser at 100% zoom. Start the app with `start.bat`, w
 | 2:35–2:50 | Customer app tab | Enter ZIP 98101. Ask "Is there an issue in 98101?" | "Customers see only confirmed, plain-language updates, filtered for internal details." |
 | 2:50–3:00 | Safety ledger | Scroll the ledger. | "Every step, from evidence to action, is in the Safety Ledger, and outages are tracked against FCC Part 4. RAN Sentinel: faster fixes that are proven safe first." |
 
-## If something goes wrong while recording
+## If something goes wrong
 
 - **No incident after a minute:** check the status bar shows the telemetry clock moving. Raise the severity to 3.
 - **Model call is slow:** keep talking over the Agent console; the timeline updates on its own.

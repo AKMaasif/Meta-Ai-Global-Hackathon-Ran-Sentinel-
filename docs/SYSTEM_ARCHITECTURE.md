@@ -1,6 +1,6 @@
 # System architecture
 
-RAN Sentinel is a single-process prototype of an AI co-engineer for a mobile radio access network (RAN). It is built for the Meta Global AI Developer Hackathon.
+RAN Sentinel is a single-process prototype of an AI co-engineer for a mobile radio access network (RAN).
 
 - **Simulated network:** a 36-cell LTE network in Seattle, WA, run by the fictional carrier Northstar Connect.
 - **Detection:** a detector finds degrading cells.

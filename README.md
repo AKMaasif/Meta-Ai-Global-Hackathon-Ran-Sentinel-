@@ -1,26 +1,20 @@
 # RAN Sentinel
 
-An AI co-engineer for mobile networks, built for the Meta Global AI Developer Hackathon.
+An AI co-engineer for mobile networks, built on Meta's Muse models.
 
 RAN Sentinel watches a cluster of LTE cells in Seattle, WA (US bands B66, B2 and B71) and spots a degrading cell. Muse Spark agents investigate it with read-only tools and propose a fix. Fixed safety rules and a digital twin check that fix before anyone sees it. The recommendation then goes to the right department. When a configuration change is approved, it is sent as an Open M-Plane change package with automatic rollback, and the cell is watched until it recovers. Customers of the fictional operator **Northstar Connect** see only confirmed, plain-language updates.
 
 Everything runs on a **simulated** network. Nothing here connects to a real operator.
 
-**New since 2026-10-30:** a verified investigation built on the patterns in Meta's
-[legal-agent workshop](https://github.com/meta-models/legal-agent-workshop). Every diagnosis passes a verifier the agents cannot skip.
-The agent pauses to ask a field engineer when the data cannot settle a cause. It keeps a living plan, works one tool per turn and
-resumes from its last step after an API failure, and an engineer signs off the root cause
-([details](docs/VERIFIED_INVESTIGATION.md)). Customers also get a hands-free **voice agent** that operates the app
-([details](docs/VOICE_AGENT.md)).
+## Highlights
 
-**Hackathon entry:** Indie track, theme "Build for Your World". The submission summary is in [SUBMISSION.md](SUBMISSION.md), the 3-minute demo script is in [DEMO.md](DEMO.md), and the code is MIT-licensed ([LICENSE](LICENSE)).
-
-| Judging criterion | Where RAN Sentinel answers it |
-|---|---|
-| Impact (30%) | Cuts the time from a degrading cell to a safe, approved fix for small carrier ops teams; tracks FCC Part 4 duty; keeps customers informed |
-| Use of Meta AI tooling (25%) | Six Meta models, each with one job: Muse Spark 1.3/1.2/1.1, Muse Wonder 1.0, SAM 3.1 and Muse Voice Transcribe 1.0, plus Open M-Plane and Maveric; the investigation follows Meta's legal-agent workshop patterns |
-| Demo (25%) | Live fault injection from the console; red-team, twin outage, diagnostics outage and model outage switches show every safety path; a customer voice agent |
-| Technical depth (20%) | Six layers, five bounded loops, a diagnosis verifier, nine safety rules, checkpoints and resume, NETCONF confirmed-commit with rollback, detector benchmarked on TelecomTS, 177 automated tests |
+- **Verified investigation.** Every diagnosis passes a verifier the agents cannot skip. The agent pauses to ask a field engineer when the data cannot settle a cause, keeps a living plan, works one tool per turn, resumes from its last step after an API failure, and an engineer signs off the root cause. The design follows the patterns in Meta's [legal-agent workshop](https://github.com/meta-models/legal-agent-workshop) ([details](docs/VERIFIED_INVESTIGATION.md)).
+- **Six Meta models, each with one job:** Muse Spark 1.3, 1.2 and 1.1, Muse Wonder 1.0, SAM 3.1 and Muse Voice Transcribe 1.0, plus Open M-Plane and Maveric.
+- **Safety first:** nine fixed safety rules, a digital twin, five bounded agent loops, and NETCONF confirmed-commit with automatic rollback.
+- **Detection benchmarked** on the open TelecomTS dataset.
+- **Customer side:** plain-language network updates, a hands-free **voice agent** that operates the app ([details](docs/VOICE_AGENT.md)), and a help center with support requests.
+- **Demo controls** for live fault injection, plus red-team, twin outage, diagnostics outage and model outage switches that show every safety path. A guided walkthrough is in [DEMO.md](DEMO.md).
+- **177 automated tests.** The code is MIT-licensed ([LICENSE](LICENSE)).
 
 What's built for the US market:
 - **FCC Part 4 outage check** (47 CFR 4.9(e)). It tracks user-minutes for every outage and, when a wireless outage passes 30 minutes and 900,000 user-minutes, opens a Regulatory Compliance ticket with the 120-minute, 72-hour and 30-day deadlines. Set `FCC_USERS_PER_SITE` in `.env`. This is decision support, not legal advice.
@@ -100,7 +94,7 @@ RAN Sentinel is not a replacement for a vendor's SON or an operator's OSS. Large
 
 | Document | What it covers |
 |---|---|
-| [Complete user manual (PDF)](docs/PROJECT_COMPLETE_USER_MANUAL.pdf) | architecture, installation, a guide to every feature with annotated screenshots, the testing guide with real results, a 5 to 10 minute judges' demo, troubleshooting |
+| [Complete user manual (PDF)](docs/PROJECT_COMPLETE_USER_MANUAL.pdf) | architecture, installation, a guide to every feature with annotated screenshots, the testing guide with real results, a 5 to 10 minute guided demo, troubleshooting |
 | [Technical documentation (PDF)](docs/RAN_Sentinel_Technical_Documentation.pdf) | Part A: industry problems, market size (TAM/SAM/SOM), customer experience, ROI scenarios, competitors and rollout, with sources; Part B: the technical manual |
 | [System architecture](docs/SYSTEM_ARCHITECTURE.md) | roles, components, runtime model, incident lifecycle, agent loop, data flow, tech stack |
 | [AI agents and models](docs/AI_AGENTS_AND_MODELS.md) | every agent, its model and fallback, tools, limits, what is deterministic |
@@ -336,6 +330,16 @@ data/                      created at first run: sentinel.db (SQLite); ignored b
 ```
 
 The database needs no setup: `data/sentinel.db` is created on first start. To start clean, stop the server and delete that file.
+
+## Third-party components
+
+Used under their own licences:
+- **Libraries:** FastAPI, Uvicorn, NumPy and httpx (MIT or BSD); scikit-learn (BSD); the OpenAI Python SDK (Apache-2.0), used as the client for Meta's OpenAI-compatible endpoint; python-dotenv (BSD).
+- **Maps:** Leaflet 1.9.4 (BSD-2), topojson-client 3.1.0 (ISC) and us-atlas 3.0.1 state boundaries (ISC; data from the US Census Bureau), bundled. Street tiles © OpenStreetMap contributors and © CARTO, loaded online only.
+- **Fonts:** IBM Plex (SIL OFL).
+- **Data:** TelecomTS (MIT), used for benchmarking only and not redistributed.
+
+Open M-Plane and Maveric are referenced, not bundled. No Meta or vendor endorsement is implied.
 
 ## Tests
 
