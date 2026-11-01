@@ -94,7 +94,7 @@ Customer map and signal routes never return cell ids, transmit power, tilt or KP
 
 ## 4. Database
 
-SQLite file `data/sentinel.db` (`Settings.db_path`), schema in `backend/app/store.py`. Created on first run (`CREATE TABLE IF NOT EXISTS`). There are no migrations. **All tables are emptied when a `Sentinel` is constructed** (`Store.reset()`), at every server start and at demo reset.
+SQLite file `data/sentinel.db` (`Settings.db_path`), schema in `backend/app/store.py`. Created on first run (`CREATE TABLE IF NOT EXISTS`). There are no migrations. **The incident tables are emptied when a `Sentinel` is constructed** (`Store.reset()`), at every server start and at demo reset. The two support tables (`support_tickets`, `support_messages`) are kept, so help requests survive a restart and a demo reset.
 
 ```mermaid
 erDiagram
@@ -154,3 +154,32 @@ Kept **in memory only**, and lost on restart:
 - the whole customer-care state: notifications, places, preferences, credits, reports, pending actions, phone positions and explanations.
 
 There is one fictional subscriber (`care.SUBSCRIBER`), not a customer table.
+
+## 5. Help and support
+
+Code: `backend/app/support.py` (validation, ticket rules, the 17 help articles) and the routes at the end of `backend/app/main.py`. Customer routes need the `rs_connect` session and only ever return that customer's own requests; staff routes need `rs_ops`. Any other caller gets 401. Validation errors return 422 with `{"detail": {"message", "fields": {field: message}}}`.
+
+| Method and route | Who | Purpose | Errors |
+| --- | --- | --- | --- |
+| `GET /api/care/help?q=&category=` | customer | search articles and FAQs; empty `q` lists all | 400 unknown category |
+| `GET /api/care/help/{id}` | customer | one article with steps, screenshot, links and related articles | 404 |
+| `GET /api/care/support` | customer | my requests, newest first, with status labels and an unread flag | — |
+| `POST /api/care/support` | customer | new request `{name, email, category, subject, description}`; returns the ticket with its `CS-` ID | 422 fields, 429 after 20 open requests |
+| `GET /api/care/support/{id}` | customer | one request and its conversation; marks staff replies read | 404 if missing or not yours |
+| `POST /api/care/support/{id}/reply` | customer | `{body}`; a waiting or resolved request goes back to open | 409 closed, 422 empty |
+| `POST /api/care/support/{id}/close` | customer | close the request | 409 already closed |
+| `GET /api/support/tickets?status=&category=&q=` | staff | all requests with counts per status; `status` is `active` (default), `all` or one status; `q` searches ID, subject, name, email and messages | 400 unknown filter |
+| `GET /api/support/tickets/{id}` | staff | one request, its conversation and the customer's other requests | 404 |
+| `POST /api/support/tickets/{id}/reply` | staff | `{body, status}`; status after reply defaults to `waiting_customer` | 409 closed (reopen with update first), 422 empty or unknown status |
+| `POST /api/support/tickets/{id}/update` | staff | `{status?, priority?}`; each change is logged in the conversation | 400 nothing changed, 422 unknown status or priority |
+
+Statuses: `open`, `in_progress`, `waiting_customer`, `resolved`, `closed`. Priorities: `low`, `normal` (default), `high`, `urgent`. Field limits: name 2 to 80 characters, email 5 to 254, subject 4 to 120, description 10 to 4000, reply 1 to 4000. Control characters are removed before saving.
+
+```
+support_tickets(seq INTEGER PRIMARY KEY, id TEXT UNIQUE "CS-100001", owner TEXT, status TEXT,
+                category TEXT, priority TEXT, created TEXT, updated TEXT, data TEXT "full ticket JSON")
+support_messages(seq INTEGER PRIMARY KEY AUTOINCREMENT, ticket_id TEXT, role TEXT "customer | staff | system",
+                 author TEXT, body TEXT, created TEXT)
+```
+
+Indexes on `support_tickets(owner)` and `support_messages(ticket_id)`. Tests: `tests/test_support.py` (42) and `scripts/check_support_ui.js` (53 browser checks).

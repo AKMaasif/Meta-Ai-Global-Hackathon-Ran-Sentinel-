@@ -17,7 +17,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from . import agents, radio
+from . import agents, radio, support
+from .support import Support, SupportError
 from .care import CREDIT_AMOUNT, CREDIT_MIN_MINUTES, SETTINGS, SUBSCRIBER, SYMPTOMS, Care
 from .config import ROOT, settings
 from .detection import DETECTOR_VERSION
@@ -216,6 +217,7 @@ def state(_: dict = Depends(ops_user)):
                         "open_incidents": len(open_incs),
                         "critical": sum(1 for i in open_incs if i["severity"] == "critical"),
                         "pending_tickets": sum(t["status"] == "pending" for t in tickets),
+                        "support_unread": sum(1 for t in sen.store.list_support_tickets() if t["unread_staff"] and t["status"] != "closed"),
                         "network_status": "Degraded" if any(i["severity"] in ("major", "critical") for i in open_incs) else
                                           ("Watching" if open_incs else "Healthy")},
             "cells": cells, "health": hist, "incidents": incs[:30], "activity": activity,
@@ -594,12 +596,13 @@ def _account(c: Care) -> dict:
 
 
 @app.get("/api/care/home")
-def care_home(_: dict = Depends(customer_user)):
+def care_home(s: dict = Depends(customer_user)):
     c = _care()
     with sentinel.lock:
         places = [c.place_status(p) for p in c.places]
     return {"account": _account(c), "places": places, "notifications": c.notifications[:5],
             "unread": sum(not n["read"] for n in c.notifications), "credits": c.credit_status(),
+            "support_unread": sum(t["unread_customer"] for t in _support().mine(s["email"])),
             "prefs": c.prefs, "now": sentinel.sim.now.isoformat(), "timezone": MARKET["tz_label"],
             "engine": "offline" if sentinel.provider.offline else "meta"}
 
@@ -806,3 +809,111 @@ def care_phone(body: PhonePos, _: dict = Depends(customer_user)):
         return _care().move_phone(body.place, body.lat, body.lon)
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+def _support() -> Support:
+    sen = sentinel
+    if getattr(sen, "support", None) is None or sen.support.store is not sen.store:
+        sen.support = Support(sen.store)
+    return sen.support
+
+
+def _sup(fn, *a, **k):
+    try:
+        return fn(*a, **k)
+    except SupportError as e:
+        raise HTTPException(e.status, {"message": e.message, "fields": e.fields})
+
+
+@app.get("/api/care/help")
+def care_help(q: str = "", category: str = "", _: dict = Depends(customer_user)):
+    if category and category not in support.CATEGORIES:
+        raise HTTPException(400, "Unknown category.")
+    return {"categories": [{"id": k, "label": v, "count": sum(a["category"] == k for a in support.ARTICLES)} for k, v in support.CATEGORIES.items()],
+            "articles": support.search(q, category or None), "popular": support.POPULAR, "q": q}
+
+
+@app.get("/api/care/help/{aid}")
+def care_article(aid: str, _: dict = Depends(customer_user)):
+    a = support.BY_ID.get(aid)
+    if not a:
+        raise HTTPException(404, "We couldn't find that help article.")
+    related = [x for x in support.ARTICLES if x["category"] == a["category"] and x["id"] != aid][:3]
+    return {**a, "category_label": support.CATEGORIES[a["category"]], "related": related}
+
+
+@app.get("/api/care/support")
+def care_support_list(s: dict = Depends(customer_user)):
+    items = _support().mine(s["email"])
+    return {"tickets": items, "unread": sum(t["unread_customer"] for t in items),
+            "contact": {"name": SUBSCRIBER["name"], "email": s["email"]},
+            "categories": support.CATEGORIES, "statuses": support.STATUSES}
+
+
+class NewTicket(BaseModel):
+    name: str = ""
+    email: str = ""
+    subject: str = ""
+    category: str = ""
+    description: str = ""
+
+
+@app.post("/api/care/support")
+def care_support_create(body: NewTicket, s: dict = Depends(customer_user)):
+    return _sup(_support().create, s["email"], body.model_dump())
+
+
+@app.get("/api/care/support/{tid}")
+def care_support_get(tid: str, s: dict = Depends(customer_user)):
+    return _sup(_support().view_customer, tid, s["email"])
+
+
+class TicketReply(BaseModel):
+    body: str = ""
+
+
+@app.post("/api/care/support/{tid}/reply")
+def care_support_reply(tid: str, body: TicketReply, s: dict = Depends(customer_user)):
+    return _sup(_support().customer_reply, tid, s["email"], SUBSCRIBER["name"], body.body)
+
+
+@app.post("/api/care/support/{tid}/close")
+def care_support_close(tid: str, s: dict = Depends(customer_user)):
+    return _sup(_support().customer_close, tid, s["email"])
+
+
+STAFF_NAME = "Sarah Chen"
+
+
+@app.get("/api/support/tickets")
+def support_list(status: str = "active", category: str = "all", q: str = "", _: dict = Depends(ops_user)):
+    out = _sup(_support().all, status, category, q)
+    return {**out, "statuses": support.STAFF_STATUSES, "categories": support.CATEGORIES, "priorities": support.PRIORITIES}
+
+
+@app.get("/api/support/tickets/{tid}")
+def support_get(tid: str, _: dict = Depends(ops_user)):
+    t = _sup(_support().view_staff, tid)
+    history = [x for x in _support().store.list_support_tickets(t["owner"]) if x["id"] != t["id"]]
+    return {**t, "history": [support.public(x, staff=True) for x in history[:10]], "statuses": support.STAFF_STATUSES,
+            "priorities": support.PRIORITIES, "categories": support.CATEGORIES}
+
+
+class StaffReply(BaseModel):
+    body: str = ""
+    status: str | None = "waiting_customer"
+
+
+@app.post("/api/support/tickets/{tid}/reply")
+def support_reply(tid: str, body: StaffReply, _: dict = Depends(ops_user)):
+    return _sup(_support().staff_reply, tid, STAFF_NAME, body.body, body.status)
+
+
+class StaffUpdate(BaseModel):
+    status: str | None = None
+    priority: str | None = None
+
+
+@app.post("/api/support/tickets/{tid}/update")
+def support_update(tid: str, body: StaffUpdate, _: dict = Depends(ops_user)):
+    return _sup(_support().staff_update, tid, STAFF_NAME, body.status, body.priority)

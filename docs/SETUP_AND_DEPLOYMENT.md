@@ -66,7 +66,8 @@ Later runs skip steps 1–3.
 ### Manual
 
 ```powershell
-cd "D:\Meta Ai Heckatho\ran-sentinel"
+git clone https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-.git
+cd Meta-Ai-Global-Hackathon-Ran-Sentinel-
 py -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
@@ -150,7 +151,7 @@ Benchmarks: `py scripts\benchmark_simulator.py`. For TelecomTS, `pip install hug
 
 | Symptom | Likely cause | What to do |
 | --- | --- | --- |
-| "Offline rules engine" everywhere | `MODEL_API_KEY` is empty, or `.env` is not in the project root | put the key in `ran-sentinel\.env` and restart |
+| "Offline rules engine" everywhere | `MODEL_API_KEY` is empty, or `.env` is not in the project root | put the key in `.env` in the project folder and restart |
 | An agent shows a fallback model or a template | the primary model failed or timed out | check the agent console on the incident page; run `check_meta.py` |
 | `[Errno 10048]` / address already in use | another server on port 8000 | close the other window, or stop the process using the port |
 | "This is an engineer account…" or "This is a Northstar Connect customer account…" on sign-in | the right account on the wrong portal | sign in on the other app: engineers at `/ops/`, customers at `/connect/` |
@@ -165,7 +166,8 @@ Benchmarks: `py scripts\benchmark_simulator.py`. For TelecomTS, `pip install hug
 
 ## 9. Verification checklist
 
-- [ ] `python -m pytest -q` reports all tests passed (135 at the time of writing).
+- [ ] `python -m pytest -q` reports all tests passed (177 at the time of writing).
+- [ ] `node scripts/check_support_ui.js` reports all 53 support UI checks passed (app running).
 - [ ] `py scripts\check_meta.py` passes for every model you use.
 - [ ] `py scripts\audit_agents.py` ends with "All agents passed live."
 - [ ] The console shows "Meta Model API" and the clock advances.

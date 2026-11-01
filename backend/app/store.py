@@ -15,6 +15,12 @@ CREATE TABLE IF NOT EXISTS tickets (id TEXT PRIMARY KEY, incident_id TEXT, depar
   created TEXT, data TEXT);
 CREATE TABLE IF NOT EXISTS customer_updates (seq INTEGER PRIMARY KEY AUTOINCREMENT, incident_id TEXT,
   area TEXT, status TEXT, text TEXT, published TEXT);
+CREATE TABLE IF NOT EXISTS support_tickets (seq INTEGER PRIMARY KEY, id TEXT UNIQUE, owner TEXT, status TEXT,
+  category TEXT, priority TEXT, created TEXT, updated TEXT, data TEXT);
+CREATE TABLE IF NOT EXISTS support_messages (seq INTEGER PRIMARY KEY AUTOINCREMENT, ticket_id TEXT, role TEXT,
+  author TEXT, body TEXT, created TEXT);
+CREATE INDEX IF NOT EXISTS support_owner ON support_tickets (owner);
+CREATE INDEX IF NOT EXISTS support_msg_ticket ON support_messages (ticket_id);
 """
 
 
@@ -99,6 +105,49 @@ class Store:
     def customer_updates(self) -> list[dict]:
         with self.lock:
             rows = self.db.execute("SELECT * FROM customer_updates ORDER BY seq DESC").fetchall()
+        return [dict(r) for r in rows]
+
+
+    def create_support_ticket(self, t: dict, first: dict) -> dict:
+        with self.lock:
+            seq = self.db.execute("SELECT COALESCE(MAX(seq), 100000) + 1 FROM support_tickets").fetchone()[0]
+            t = {**t, "id": f"CS-{seq}"}
+            self.db.execute("INSERT INTO support_tickets VALUES (?,?,?,?,?,?,?,?,?)",
+                            (seq, t["id"], t["owner"], t["status"], t["category"], t["priority"], t["created"], t["updated"], json.dumps(t)))
+            self.db.execute("INSERT INTO support_messages (ticket_id, role, author, body, created) VALUES (?,?,?,?,?)",
+                            (t["id"], first["role"], first["author"], first["body"], first["created"]))
+            self.db.commit()
+        return t
+
+    def save_support_ticket(self, t: dict) -> None:
+        with self.lock:
+            self.db.execute("UPDATE support_tickets SET status=?, category=?, priority=?, updated=?, data=? WHERE id=?",
+                            (t["status"], t["category"], t["priority"], t["updated"], json.dumps(t), t["id"]))
+            self.db.commit()
+
+    def get_support_ticket(self, tid: str) -> dict | None:
+        with self.lock:
+            r = self.db.execute("SELECT data FROM support_tickets WHERE id=?", (tid,)).fetchone()
+        return json.loads(r["data"]) if r else None
+
+    def list_support_tickets(self, owner: str | None = None) -> list[dict]:
+        with self.lock:
+            if owner is None:
+                rows = self.db.execute("SELECT data FROM support_tickets ORDER BY seq DESC").fetchall()
+            else:
+                rows = self.db.execute("SELECT data FROM support_tickets WHERE owner=? ORDER BY seq DESC", (owner,)).fetchall()
+        return [json.loads(r["data"]) for r in rows]
+
+    def add_support_message(self, ticket_id: str, role: str, author: str, body: str, created: str) -> dict:
+        with self.lock:
+            cur = self.db.execute("INSERT INTO support_messages (ticket_id, role, author, body, created) VALUES (?,?,?,?,?)",
+                                  (ticket_id, role, author, body, created))
+            self.db.commit()
+        return {"seq": cur.lastrowid, "ticket_id": ticket_id, "role": role, "author": author, "body": body, "created": created}
+
+    def support_messages(self, ticket_id: str) -> list[dict]:
+        with self.lock:
+            rows = self.db.execute("SELECT * FROM support_messages WHERE ticket_id=? ORDER BY seq", (ticket_id,)).fetchall()
         return [dict(r) for r in rows]
 
 

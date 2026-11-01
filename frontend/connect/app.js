@@ -1,6 +1,6 @@
 const { api, esc } = UI;
 const app = document.getElementById("app");
-let toastTimer = null, lastTop = null;
+let toastTimer = null, lastTop = null, supportUnread = 0;
 const chat = [];
 const ui = { place: "home", report: { place: "home", symptom: "no_service" } };
 
@@ -27,6 +27,7 @@ const I = {
   watch: '<rect x="7" y="6" width="10" height="12" rx="3"/><path d="M9 6l1-4h4l1 4M9 18l1 4h4l1-4"/>',
   router: '<rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 17h.01M11 17h.01M8 9a6 6 0 0 1 8 0M5.5 6.5a10 10 0 0 1 13 0"/>',
   send: '<path d="M4 12l16-8-6 16-2-7z"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
 };
 const ic = (k, s = 20) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[k]}</svg>`;
 const clock = (iso) => { if (!iso) return ""; const h = +iso.slice(11, 13), m = iso.slice(14, 16); return `${h % 12 || 12}:${m} ${h < 12 ? "AM" : "PM"}`; };
@@ -54,7 +55,7 @@ function shell(active, inner, head) {
       <a class="iconbtn" href="#/notifications" aria-label="Notifications">${ic("bell", 22)}<span id="badge"></span></a></header>
     ${inner}
     <nav class="tabbar" aria-label="Main">${[["home", "Home", "home"], ["network", "Network", "net"], ["account", "Account", "user"], ["bill", "Bill", "bill"], ["help", "Help", "help"]]
-      .map(([r, l, k]) => `<a href="#/${r}" class="${active === r ? "on" : ""}" ${active === r ? 'aria-current="page"' : ""}>${ic(k, 22)}${l}</a>`).join("")}</nav></div>`;
+      .map(([r, l, k]) => `<a href="#/${r}" class="${active === r ? "on" : ""}" ${active === r ? 'aria-current="page"' : ""}>${ic(k, 22)}${l}${r === "help" && supportUnread ? `<span class="dot" aria-label="New reply from the care team"></span>` : ""}</a>`).join("")}</nav></div>`;
 }
 function badge(n) { const b = document.getElementById("badge"); if (b) b.outerHTML = `<span id="badge">${n ? `<span class="badge">${n > 9 ? "9+" : n}</span>` : ""}</span>`; }
 function notice(home) {
@@ -62,6 +63,11 @@ function notice(home) {
   if (top && lastTop && top.id !== lastTop) toast(top.title, top.body);
   if (top) lastTop = top.id;
   badge(home.unread);
+  if ((home.support_unread || 0) !== supportUnread) {
+    supportUnread = home.support_unread || 0;
+    const a = document.querySelector('.tabbar a[href="#/help"]');
+    if (a) { a.querySelector(".dot")?.remove(); if (supportUnread) a.insertAdjacentHTML("beforeend", '<span class="dot" aria-label="New reply from the care team"></span>'); }
+  }
 }
 
 const view = { set html(h) { if (app.querySelector(".app")) UI.morph(app, h); else app.innerHTML = h; } };
@@ -74,11 +80,11 @@ const poll = UI.poller({ onState: (s) => {
 const fatal = (e) => { if (e.status === 401) location.hash = "#/login"; else console.error(e); };
 function route() {
   const [p, arg] = (location.hash.replace(/^#\/?/, "") || "home").split("/");
-  const pages = { home, network: () => network(arg), account, bill, help, notifications, report, shop };
+  const pages = { home, network: () => network(arg), account, bill, help: () => (arg ? article(arg) : help()), assistant, support: () => (arg === "new" ? supportNew() : arg ? supportTicket(arg) : supportList()), notifications, report, shop };
   voice.show(p !== "login");
   if (p === "login") { poll.stop(); voice.end(); return login(); }
   const fn = pages[p] || home;
-  if (["home", "network", "notifications", "bill"].includes(p) || !pages[p]) return poll.start(fn, 5000, fatal);
+  if (["home", "network", "notifications", "bill"].includes(p) || (p === "support" && arg && arg !== "new") || !pages[p]) return poll.start(fn, 5000, fatal);
   guard(fn);
   poll.start(async () => notice(await api("/api/care/home")), 8000, fatal);
 }
@@ -113,7 +119,7 @@ function heroCard(p) {
     ${k !== "restored" ? `<div class="progress" aria-label="Progress: ${esc(cur ? cur.label : "")}">${i.journey.map((j) => `<i class="${j.state}"></i>`).join("")}</div>
     <div class="small"><b>${esc(cur ? cur.label : "")}</b> · step ${i.stage + 1} of 6</div>
     <div class="eta">${ic("clock", 22)}<div><b>${esc(i.eta.text || "")}</b><div class="small muted">Estimate ${conf(i.eta.confidence)} ${esc(i.eta.confidence)} confidence</div></div></div>` : ""}
-    <div class="btns"><a class="b sm" href="#/network/${p.id}">See details</a><a class="b sm ghost" href="#/help">Ask the assistant</a></div></section>`;
+    <div class="btns"><a class="b sm" href="#/network/${p.id}">See details</a><a class="b sm ghost" href="#/assistant">Ask the assistant</a></div></section>`;
 }
 function suggList(list, limit = 3) {
   if (!list.length) return "";
@@ -149,10 +155,10 @@ async function home() {
         <a href="#/network"><span class="ic">${ic("net")}</span>Network</a>
         <a href="#/report"><span class="ic">${ic("flag")}</span>Report a problem</a>
         <button id="q-wifi"><span class="ic">${ic("wifi")}</span>Wi-Fi Calling ${h.prefs.wifi_calling ? "on" : "off"}</button>
-        <a href="#/help"><span class="ic">${ic("spark")}</span>Ask AI</a>
+        <a href="#/assistant"><span class="ic">${ic("spark")}</span>Ask AI</a>
         <a href="#/shop"><span class="ic">${ic("bag")}</span>Shop</a></div>
       ${w.suggestions.length ? `<div class="sect"><h2>For you right now</h2></div><section class="card">${suggList(w.suggestions)}</section>` : ""}
-      <a class="aistrip" href="#/help">${ic("spark", 26)}<div><b>Your AI care team</b><span>Watching ${h.places.length} places · ${h.engine === "meta" ? "Meta Muse models" : "offline rules (no Meta key)"}</span></div><span class="go">›</span></a>
+      <a class="aistrip" href="#/assistant">${ic("spark", 26)}<div><b>Your AI care team</b><span>Watching ${h.places.length} places · ${h.engine === "meta" ? "Meta Muse models" : "offline rules (no Meta key)"}</span></div><span class="go">›</span></a>
       ${h.notifications.length ? `<div class="sect"><h2>Latest from us</h2><a href="#/notifications">See all</a></div><section class="card">${h.notifications.slice(0, 2).map(noteItem).join("")}</section>` : ""}
       <section class="perk"><b>Northstar Perks</b><span>Thanks for being with us since ${esc(a.member_since)}. New member perks every Thursday.</span></section>
       <p class="muted-note">Demo app for a fictional carrier. Network times are simulated, in ${esc(h.timezone)}.</p></div>`,
@@ -420,7 +426,7 @@ function bubble(m, i) {
     ${(m.steps || []).length ? `<details class="how"><summary>How I answered (${m.steps.length} steps)</summary><ol>${m.steps.map((s) => `<li>${esc(s.label)}</li>`).join("")}</ol></details>` : ""}
     ${m.by ? `<span class="by">${esc(byLabel(m.by))}</span>` : ""}</div>`;
 }
-async function help() {
+async function assistant() {
   const h = await api("/api/care/home");
   view.html = shell("help", `<div class="page" style="padding-top:12px">
     <section class="card"><div style="display:flex;gap:12px;align-items:center"><span class="avatar" style="background:var(--brand);color:#fff">${ic("spark", 18)}</span>
@@ -434,9 +440,9 @@ async function help() {
     <section class="card"><p class="small">Seven layers work on your question. Only the first four use AI; the rest are fixed rules, so estimates, credits and changes stay predictable.</p>
       <div class="team">${LAYERS.map((l, i) => `<div class="layer"><span class="n">${i + 1}</span><div><b>${esc(l[0])}</b> <span class="m">${esc(l[1])}</span></div><p>${esc(l[2])}</p></div>`).join("")}</div></section>
     <section class="card"><h2>Other help</h2><div class="list">
-      <a class="li" href="#/report"><span><b>Report a network problem</b><div class="sub">Goes to our engineers if it matches a repair</div></span><span>›</span></a>
-      <button class="li" id="callback" style="background:none;border:0;border-top:1px solid var(--line);text-align:left;cursor:pointer;width:100%"><span><b>Talk to a person</b><div class="sub">Request a callback from our care team</div></span><span>›</span></button>
-      <a class="li" href="#/network"><span><b>Check network status</b><div class="sub">Live status for every Seattle neighborhood</div></span><span>›</span></a></div></section></div>`, { title: "Help" });
+      <a class="li" href="#/help"><span><b>Help center</b><div class="sub">Articles, troubleshooting and frequently asked questions</div></span><span>›</span></a>
+      <a class="li" href="#/support/new"><span><b>Contact support</b><div class="sub">Send a request to the care team and follow it in the app</div></span><span>›</span></a>
+      <a class="li" href="#/report"><span><b>Report a network problem</b><div class="sub">Goes to our engineers if it matches a repair</div></span><span>›</span></a></div></section></div>`, { title: "Assistant", back: "#/help" });
   notice(h);
   const log = document.getElementById("log");
   const render = () => { log.innerHTML = chat.map(bubble).join(""); bindActs(); log.lastElementChild?.scrollIntoView({ block: "nearest" }); };
@@ -462,12 +468,225 @@ async function help() {
   bindActs();
   document.querySelectorAll(".prompts button").forEach((b) => (b.onclick = () => send(b.textContent)));
   document.getElementById("ask").onsubmit = (e) => { e.preventDefault(); const q = document.getElementById("q"); send(q.value); q.value = ""; };
-  document.getElementById("callback").onclick = () => toast("Demo app", "A real app would book a callback here.");
   const vmsg = document.getElementById("vmsg");
   UI.micButton(document.getElementById("mic"), "/api/public/voice", (r) => {
     const q = document.getElementById("q"); q.value = r.text; q.focus();
     vmsg.hidden = false; vmsg.textContent = r.text ? "Check the text, then tap send." : "We didn't catch that. Please try again or type.";
   }, (e) => { vmsg.hidden = false; vmsg.textContent = e; });
+}
+
+const ST = { open: "info", in_progress: "info", waiting_customer: "warn", resolved: "ok", closed: "plain" };
+const stPill = (t) => `<span class="pill ${ST[t.status]}${t.status === "closed" ? " plain" : ""}">${esc(t.status_label)}</span>`;
+const when = (iso) => (iso ? `${date(iso)}, ${clock(iso)}` : "");
+const LIMIT = { name: [2, 80], email: [5, 254], subject: [4, 120], description: [10, 4000] };
+const CAT_IC = { network: "net", billing: "bill", account: "user", device: "phone", app: "spark", other: "msg" };
+let helpTimer = null, helpSeq = 0;
+
+function faqItem(a) {
+  return `<details class="faq" id="faq-${esc(a.id)}"><summary><span><b>${esc(a.title)}</b><span class="sub">${esc(a.summary)}</span></span><span class="chev" aria-hidden="true">›</span></summary>
+    <div class="faqbody">${a.body.map((p) => `<p>${esc(p)}</p>`).join("")}<a class="b sm soft" href="#/help/${esc(a.id)}">Read the full article</a></div></details>`;
+}
+function faqList(list, q) {
+  if (!list.length) return `<div class="emptybox" role="status"><b>No articles match “${esc(q)}”.</b><p class="small muted">Try fewer or different words, ask the assistant, or send a request to the care team.</p>
+    <div class="btns"><a class="b sm soft" href="#/assistant">Ask the assistant</a><a class="b sm ghost" href="#/support/new">Contact support</a></div></div>`;
+  return list.map(faqItem).join("");
+}
+async function help() {
+  const [d, h, s] = await Promise.all([api("/api/care/help"), api("/api/care/home"), api("/api/care/support")]);
+  const cat = ui.helpCat || "";
+  const active = s.tickets.filter((t) => !["resolved", "closed"].includes(t.status)).length;
+  const fresh = s.tickets.filter((t) => t.unread_customer);
+  const shown = cat ? d.articles.filter((a) => a.category === cat) : d.popular.map((id) => d.articles.find((a) => a.id === id));
+  view.html = shell("help", `<div class="page" style="padding-top:12px">
+    <section class="card helphero"><h2>How can we help, ${esc(h.account.first_name)}?</h2>
+      <form class="hsearch" id="hs" role="search"><span aria-hidden="true">${ic("search", 18)}</span><input id="hq" type="search" placeholder="Search help, for example “credit” or “slow data”" aria-label="Search help articles" autocomplete="off" value="${esc(ui.helpQ || "")}"></form></section>
+    ${fresh.map((t) => `<a class="card replynote" href="#/support/${esc(t.id)}"><span class="ic">${ic("msg", 18)}</span><span><b>The care team replied</b><span class="sub">${esc(t.id)} · ${esc(t.subject)}</span></span><span aria-hidden="true">›</span></a>`).join("")}
+    <div id="hres" aria-live="polite"></div>
+    <div class="quick six" id="hquick">
+      <a href="#/assistant"><span class="ic">${ic("spark")}</span>Ask the assistant</a>
+      <a href="#/support/new"><span class="ic">${ic("send")}</span>Contact support</a>
+      <a href="#/support"><span class="ic">${ic("msg")}</span>My requests${active ? ` <span class="count">${active}</span>` : ""}</a>
+      <a href="#/report"><span class="ic">${ic("flag")}</span>Report a problem</a>
+      <a href="#/network"><span class="ic">${ic("net")}</span>Network status</a>
+      <a href="#/help/outage-credit"><span class="ic">${ic("gift")}</span>Outage credits</a></div>
+    <div id="hbrowse">
+    <div class="sect"><h2>Browse by topic</h2>${cat ? `<button class="linkbtn" id="allcats">Show popular</button>` : ""}</div>
+    <div class="cats" role="group" aria-label="Help topics">${d.categories.filter((c) => c.count).map((c) => `<button class="cat ${cat === c.id ? "on" : ""}" data-cat="${c.id}" aria-pressed="${cat === c.id}"><span class="ic">${ic(CAT_IC[c.id] || "msg", 18)}</span><b>${esc(c.label)}</b><span class="sub">${c.count} article${c.count === 1 ? "" : "s"}</span></button>`).join("")}</div>
+    <div class="sect"><h2>${cat ? esc(d.categories.find((c) => c.id === cat).label) : "Popular questions"}</h2></div>
+    <section class="card faqs">${shown.map(faqItem).join("")}</section></div>
+    <section class="card stillcard"><h2>Still need help?</h2><p class="small">Send a request to the Northstar care team. You get a reference number straight away and can follow the replies here in the app.</p>
+      <div class="btns"><a class="b" href="#/support/new">Contact support</a><a class="b ghost" href="#/support">My support requests</a></div></section>
+    <p class="muted-note">Demo app for a fictional carrier. Requests are answered by staff in the RAN Sentinel Operations Support desk.</p></div>`, { title: "Help" });
+  notice(h);
+  document.querySelectorAll("[data-cat]").forEach((b) => (b.onclick = () => { ui.helpCat = ui.helpCat === b.dataset.cat ? "" : b.dataset.cat; guard(help); }));
+  const all = document.getElementById("allcats"); if (all) all.onclick = () => { ui.helpCat = ""; guard(help); };
+  const q = document.getElementById("hq"), res = document.getElementById("hres"), browse = document.getElementById("hbrowse"), quick = document.getElementById("hquick");
+  const run = async () => {
+    const text = q.value.trim(); ui.helpQ = q.value;
+    const seq = ++helpSeq;
+    if (!text) { res.innerHTML = ""; browse.hidden = false; quick.hidden = false; return; }
+    browse.hidden = true; quick.hidden = true;
+    res.innerHTML = `<p class="small muted" role="status"><span class="spin" aria-hidden="true"></span> Searching…</p>`;
+    try {
+      const r = await api("/api/care/help?q=" + encodeURIComponent(text));
+      if (seq !== helpSeq) return;
+      res.innerHTML = `<div class="sect"><h2>${r.articles.length ? `${r.articles.length} result${r.articles.length === 1 ? "" : "s"}` : "No results"}</h2><button class="linkbtn" id="hclear">Clear search</button></div>
+        <section class="card faqs">${faqList(r.articles, text)}</section>`;
+      document.getElementById("hclear").onclick = () => { q.value = ""; run(); q.focus(); };
+      const first = res.querySelector("details.faq"); if (first && r.articles.length <= 2) first.open = true;
+    } catch (e) {
+      if (seq !== helpSeq) return;
+      res.innerHTML = `<div class="emptybox err" role="alert"><b>Search isn't working right now.</b><p class="small">${esc(e.message)}</p><button class="b sm ghost" id="hretry">Try again</button></div>`;
+      document.getElementById("hretry").onclick = run;
+    }
+  };
+  q.oninput = () => { clearTimeout(helpTimer); helpTimer = setTimeout(run, 220); };
+  document.getElementById("hs").onsubmit = (e) => { e.preventDefault(); clearTimeout(helpTimer); run(); };
+  if (q.value.trim()) run();
+}
+
+async function article(id) {
+  let a;
+  try { a = await api("/api/care/help/" + encodeURIComponent(id)); }
+  catch (e) {
+    if (e.status === 401) throw e;
+    view.html = shell("help", `<div class="page" style="padding-top:12px"><section class="card"><h2>We couldn't find that article</h2><p class="small muted">${esc(e.message)}</p><a class="b sm" href="#/help">Back to Help</a></section></div>`, { title: "Help", back: "#/help" });
+    return;
+  }
+  view.html = shell("help", `<div class="page" style="padding-top:12px">
+    <article class="card art"><span class="pill plain info">${esc(a.category_label)}</span><h1>${esc(a.title)}</h1><p class="lede">${esc(a.summary)}</p>
+      ${a.body.map((p) => `<p>${esc(p)}</p>`).join("")}
+      ${a.steps ? `<h2>Step by step</h2><ol class="steps">${a.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>` : ""}
+      ${a.image ? `<figure class="shot"><img src="${esc(a.image.src)}" alt="${esc(a.image.alt)}" loading="lazy" width="585" height="1080"><figcaption>${esc(a.image.caption)}</figcaption></figure>` : ""}
+      ${(a.links || []).length ? `<div class="btns">${a.links.map(([l, href], i) => `<a class="b sm ${i ? "ghost" : ""}" href="${esc(href)}">${esc(l)}</a>`).join("")}</div>` : ""}</article>
+    ${a.related.length ? `<div class="sect"><h2>Related</h2></div><section class="card"><div class="list">${a.related.map((r) => `<a class="li" href="#/help/${esc(r.id)}"><span><b>${esc(r.title)}</b><div class="sub">${esc(r.summary)}</div></span><span>›</span></a>`).join("")}</div></section>` : ""}
+    <section class="card stillcard"><h2>Didn't solve it?</h2><p class="small">Send a request and the care team will look at it with you.</p><div class="btns"><a class="b sm" href="#/support/new" data-newcat="${esc(a.category)}">Contact support</a><a class="b sm ghost" href="#/assistant">Ask the assistant</a></div></section></div>`, { title: "Help article", back: "#/help" });
+  document.querySelectorAll("[data-newcat]").forEach((x) => (x.onclick = () => { ui.supportDraft = { ...(ui.supportDraft || {}), category: x.dataset.newcat }; }));
+  guard(async () => notice(await api("/api/care/home")));
+}
+
+function ticketRow(t) {
+  return `<a class="li tk ${t.unread_customer ? "new" : ""}" href="#/support/${esc(t.id)}"><span><b>${esc(t.subject)}</b><div class="sub"><span class="mono">${esc(t.id)}</span> · ${esc(t.category_label)} · updated ${esc(when(t.updated))}</div></span>
+    <span class="tkr">${t.unread_customer ? `<span class="newdot">New reply</span>` : ""}${stPill(t)}</span></a>`;
+}
+async function supportList() {
+  const d = await api("/api/care/support");
+  const act = d.tickets.filter((t) => !["resolved", "closed"].includes(t.status)), done = d.tickets.filter((t) => ["resolved", "closed"].includes(t.status));
+  view.html = shell("help", `<div class="page" style="padding-top:12px">
+    <div class="row between"><p class="small muted">Requests you sent to the Northstar care team.</p><a class="b sm" href="#/support/new">New request</a></div>
+    ${d.tickets.length ? `${act.length ? `<div class="sect"><h2>Active</h2></div><section class="card"><div class="list">${act.map(ticketRow).join("")}</div></section>` : ""}
+      ${done.length ? `<div class="sect"><h2>Resolved and closed</h2></div><section class="card"><div class="list">${done.map(ticketRow).join("")}</div></section>` : ""}`
+      : `<section class="card emptybox"><span class="ic big">${ic("msg", 26)}</span><b>You have no support requests yet.</b><p class="small muted">If something isn't working and the help articles don't solve it, send us a request. You'll see the care team's replies here.</p><a class="b" href="#/support/new">Contact support</a></section>`}
+    <p class="muted-note">Only you and the Northstar care team can see these requests.</p></div>`, { title: "My support requests", back: "#/help" });
+  guard(async () => notice(await api("/api/care/home")));
+}
+
+function fieldErr(form, fields) {
+  form.querySelectorAll(".ferr").forEach((e) => { e.textContent = ""; e.hidden = true; });
+  form.querySelectorAll("[aria-invalid]").forEach((e) => e.removeAttribute("aria-invalid"));
+  let first = null;
+  for (const [k, msg] of Object.entries(fields)) {
+    const inp = form.querySelector(`[name="${k}"]`), out = form.querySelector(`#err-${k}`);
+    if (inp) { inp.setAttribute("aria-invalid", "true"); first = first || inp; }
+    if (out) { out.textContent = msg; out.hidden = false; }
+  }
+  if (first) first.focus();
+}
+function checkTicket(v) {
+  const f = {}, say = { name: ["your name", "Your name"], email: ["your email address", "Your email address"], subject: ["a subject", "The subject"], description: ["a description of the problem", "The description"] };
+  for (const k of ["name", "email", "subject", "description"]) {
+    const [lo, hi] = LIMIT[k], x = v[k].trim();
+    if (!x) f[k] = `Enter ${say[k][0]}.`; else if (x.length < lo) f[k] = `${say[k][1]} must be at least ${lo} characters.`; else if (x.length > hi) f[k] = `${say[k][1]} must be ${hi} characters or fewer.`;
+  }
+  const em = v.email.trim();
+  if (em && em.length <= 254 && !/^[^@\s<>"']+@[^@\s<>"']+\.[A-Za-z]{2,}$/.test(em)) f.email = "Enter an email address like name@example.com.";
+  if (!v.category) f.category = "Choose a category.";
+  return f;
+}
+async function supportNew() {
+  const d = await api("/api/care/support");
+  const dr = ui.supportDraft = { name: d.contact.name, email: d.contact.email, subject: "", category: "", description: "", ...(ui.supportDraft || {}) };
+  const fld = (k, label, input, hint) => `<div class="field"><label for="f-${k}">${label}</label>${input}${hint ? `<span class="hint" id="hint-${k}">${hint}</span>` : ""}<span class="ferr" id="err-${k}" hidden></span></div>`;
+  view.html = shell("help", `<div class="page" style="padding-top:12px">
+    <section class="card" id="newbox"><h2>Contact support</h2><p class="small muted">Tell us what's wrong and the care team will reply here in the app. Fields marked * are required.</p>
+      <form id="tf" class="grid tform" novalidate>
+        ${fld("name", "Name *", `<input id="f-name" name="name" type="text" autocomplete="name" maxlength="80" required value="${esc(dr.name)}" aria-describedby="err-name">`)}
+        ${fld("email", "Email for replies *", `<input id="f-email" name="email" type="email" autocomplete="email" maxlength="254" required value="${esc(dr.email)}" aria-describedby="err-email">`)}
+        ${fld("category", "Category *", `<select id="f-category" name="category" required aria-describedby="err-category"><option value="">Choose a category</option>${Object.entries(d.categories).map(([k, l]) => `<option value="${k}" ${dr.category === k ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>`)}
+        ${fld("subject", "Subject *", `<input id="f-subject" name="subject" type="text" maxlength="120" required value="${esc(dr.subject)}" placeholder="For example: No signal at home since noon" aria-describedby="hint-subject err-subject">`, "A short summary, 4 to 120 characters.")}
+        ${fld("description", "Description *", `<textarea id="f-description" name="description" class="ta" rows="6" maxlength="4000" required placeholder="What happened, where, and since when? Include anything you already tried." aria-describedby="hint-description err-description">${esc(dr.description)}</textarea>`, `<span id="dcount">${dr.description.length}</span> / 4000 characters, at least 10.`)}
+        <p class="err" id="tferr" role="alert" hidden></p>
+        <button class="b block" type="submit">Send request</button></form></section>
+    <p class="muted-note">Please don't include passwords or card numbers. Demo app: requests are answered from the RAN Sentinel Operations Support desk.</p></div>`, { title: "Contact support", back: "#/help" });
+  const form = document.getElementById("tf"), err = document.getElementById("tferr");
+  form.oninput = (e) => {
+    const t = e.target; if (t.name) dr[t.name] = t.value;
+    if (t.name === "description") document.getElementById("dcount").textContent = t.value.length;
+    if (t.getAttribute("aria-invalid")) { t.removeAttribute("aria-invalid"); const o = document.getElementById("err-" + t.name); if (o) o.hidden = true; }
+  };
+  form.onsubmit = async (e) => {
+    e.preventDefault(); err.hidden = true;
+    const v = Object.fromEntries(new FormData(form));
+    const bad = checkTicket(v);
+    if (Object.keys(bad).length) { fieldErr(form, bad); err.textContent = "Please fix the highlighted fields."; err.hidden = false; return; }
+    fieldErr(form, {});
+    try {
+      const t = await api("/api/care/support", { body: v });
+      ui.supportDraft = null;
+      document.getElementById("newbox").outerHTML = `<section class="card done" id="newbox" role="status" tabindex="-1"><span class="ic big ok">${ic("check", 26)}</span><h2>Request sent</h2>
+        <p>Your reference is <b class="mono">${esc(t.id)}</b>. We saved it to My support requests, where you'll see the care team's reply and can answer it.</p>
+        <div class="kv"><span>Subject</span><span>${esc(t.subject)}</span><span>Category</span><span>${esc(t.category_label)}</span><span>Status</span><span>${esc(t.status_label)}</span></div>
+        <div class="btns"><a class="b" href="#/support/${esc(t.id)}">View request</a><a class="b ghost" href="#/help">Back to Help</a></div></section>`;
+      document.getElementById("newbox").focus();
+    } catch (x) {
+      if (x.status === 401) throw x;
+      if (Object.keys(x.fields || {}).length) fieldErr(form, x.fields);
+      err.textContent = x.message; err.hidden = false;
+    }
+  };
+}
+
+function msgItem(m) {
+  if (m.role === "system") return `<li class="sys"><span>${esc(m.body)}</span><time>${esc(when(m.created))}</time></li>`;
+  const me = m.role === "customer";
+  return `<li class="msg ${me ? "me" : "agent"}"><div class="mh"><b>${me ? "You" : esc(m.author)}</b>${me ? "" : `<span class="sub">Northstar care team</span>`}<time>${esc(when(m.created))}</time></div><p>${esc(m.body)}</p></li>`;
+}
+async function supportTicket(id) {
+  let t;
+  try { t = await api("/api/care/support/" + encodeURIComponent(id)); }
+  catch (e) {
+    if (e.status === 401) throw e;
+    view.html = shell("help", `<div class="page" style="padding-top:12px"><section class="card emptybox" role="alert"><b>We couldn't open that request</b><p class="small muted">${esc(e.message)} Check the reference number, or open it from your list.</p><a class="b sm" href="#/support">My support requests</a></section></div>`, { title: "Support request", back: "#/support" });
+    return;
+  }
+  const closed = t.status === "closed";
+  view.html = shell("help", `<div class="page" style="padding-top:12px">
+    <section class="card"><div class="row"><span class="mono small">${esc(t.id)}</span>${stPill(t)}</div><h2>${esc(t.subject)}</h2>
+      <span class="small muted">${esc(t.category_label)} · opened ${esc(when(t.created))} · replies go to ${esc(t.email)}</span>
+      ${t.status === "waiting_customer" ? `<div class="banner warn">The care team is waiting for your reply.</div>` : t.status === "resolved" ? `<div class="banner ok">The care team marked this resolved. If it isn't, reply below and it opens again.</div>` : ""}</section>
+    <section class="card"><h2>Conversation</h2><ol class="thread">${t.messages.map(msgItem).join("")}</ol></section>
+    ${closed ? `<section class="card"><p class="small">This request is closed. If you still need help, start a new request.</p><a class="b sm" href="#/support/new">New request</a></section>`
+      : `<section class="card" id="rbox-${esc(t.id)}" data-keep><form id="rf" class="grid" style="gap:10px" novalidate><div class="field"><label for="rbody">Your reply</label>
+        <textarea id="rbody" name="body" class="ta" rows="4" maxlength="4000" aria-describedby="rerr"></textarea><span class="ferr" id="rerr" hidden></span></div>
+        <div class="btns"><button class="b" type="submit">Send reply</button><button class="b ghost" type="button" id="closeq">Close request</button></div>
+        <div class="confirmrow" id="closeconf" hidden><span class="small">Close this request? You can't reply to it after that.</span><div class="btns"><button class="b sm" type="button" id="closeyes">Close it</button><button class="b sm ghost" type="button" id="closeno" data-nobusy>Keep it open</button></div></div></form></section>`}
+    <p class="muted-note">Only you and the Northstar care team can see this conversation.</p></div>`, { title: "Support request", back: "#/support" });
+  guard(async () => notice(await api("/api/care/home")));
+  if (closed) return;
+  const box = document.getElementById("rbox-" + t.id);
+  const f = box.querySelector("#rf"), body = box.querySelector("#rbody"), rerr = box.querySelector("#rerr");
+  f.onsubmit = async (e) => {
+    e.preventDefault(); rerr.hidden = true; body.removeAttribute("aria-invalid");
+    if (!body.value.trim()) { rerr.textContent = "Enter a message."; rerr.hidden = false; body.setAttribute("aria-invalid", "true"); body.focus(); return; }
+    try { await api(`/api/care/support/${encodeURIComponent(t.id)}/reply`, { body: { body: body.value } }); body.value = ""; toast("Reply sent", "The care team will see it straight away."); poll.now(); }
+    catch (x) { if (x.status === 401) throw x; rerr.textContent = x.message; rerr.hidden = false; }
+  };
+  box.querySelector("#closeq").onclick = () => { box.querySelector("#closeconf").hidden = false; box.querySelector("#closeyes").focus(); };
+  box.querySelector("#closeno").onclick = () => { box.querySelector("#closeconf").hidden = true; };
+  box.querySelector("#closeyes").onclick = async () => {
+    try { await api(`/api/care/support/${encodeURIComponent(t.id)}/close`, { body: {} }); toast("Request closed", t.id); poll.now(); }
+    catch (x) { if (x.status === 401) throw x; rerr.textContent = x.message; rerr.hidden = false; }
+  };
 }
 
 async function shop() {

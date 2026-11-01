@@ -286,3 +286,18 @@ table.dense td { min-width: 3.5em; }
 .signoff { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; }
 .wplan li.dropped span:last-child { text-decoration: line-through; color: var(--muted); }
 .wplan li.doing > span:first-child { color: var(--warn); }
+
+.supthread { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.supthread .m { border: 1px solid var(--line); border-radius: var(--r); padding: 9px 12px; display: grid; gap: 4px; max-width: 88%; }
+.supthread .m.customer { background: var(--sunk); justify-self: start; }
+.supthread .m.agent { background: var(--brand-soft); border-color: #b9d9da; justify-self: end; }
+.supthread .m p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; font-size: 13.5px; }
+.supthread .mh { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; font-size: 12.5px; }
+.supthread .sys { text-align: center; font-size: 12px; color: var(--muted); }
+tr.unread td { font-weight: 600; }
+.newdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--bad); margin-right: 6px; vertical-align: 1px; }
+.supother { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; font-size: 13px; }
+.supother:last-child { border-bottom: 0; }
+.pagehead .crumb a { color: inherit; text-decoration: none; }
+.pagehead .crumb a:hover { text-decoration: underline; }
+.pagehead a.btn { text-decoration: none; color: var(--fg); }

@@ -90,7 +90,7 @@ def cloud_tts(key):
 if __name__ == "__main__":
     key, src = find_key()
     if not key:
-        sys.exit("No Google key found. Put GOOGLE_API_KEY=... in ran-sentinel\\.env or save it in 'google api key.txt'.")
+        sys.exit("No Google key found. Put GOOGLE_API_KEY=... in the .env file in the project folder or save it in 'google api key.txt'.")
     print(f"Using Google key from {src} (length {len(key)}, ends ...{key[-4:]})")
     a, b = gemini(key), cloud_tts(key)
     print("\nRESULT:", "TTS AVAILABLE" if (a or b) else "NO TTS with this key",

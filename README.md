@@ -20,7 +20,7 @@ resumes from its last step after an API failure, and an engineer signs off the r
 | Impact (30%) | Cuts the time from a degrading cell to a safe, approved fix for small carrier ops teams; tracks FCC Part 4 duty; keeps customers informed |
 | Use of Meta AI tooling (25%) | Six Meta models, each with one job: Muse Spark 1.3/1.2/1.1, Muse Wonder 1.0, SAM 3.1 and Muse Voice Transcribe 1.0, plus Open M-Plane and Maveric; the investigation follows Meta's legal-agent workshop patterns |
 | Demo (25%) | Live fault injection from the console; red-team, twin outage, diagnostics outage and model outage switches show every safety path; a customer voice agent |
-| Technical depth (20%) | Six layers, five bounded loops, a diagnosis verifier, nine safety rules, checkpoints and resume, NETCONF confirmed-commit with rollback, detector benchmarked on TelecomTS, 135 automated tests |
+| Technical depth (20%) | Six layers, five bounded loops, a diagnosis verifier, nine safety rules, checkpoints and resume, NETCONF confirmed-commit with rollback, detector benchmarked on TelecomTS, 177 automated tests |
 
 What's built for the US market:
 - **FCC Part 4 outage check** (47 CFR 4.9(e)). It tracks user-minutes for every outage and, when a wireless outage passes 30 minutes and 900,000 user-minutes, opens a Regulatory Compliance ticket with the 120-minute, 72-hour and 30-day deadlines. Set `FCC_USERS_PER_SITE` in `.env`. This is decision support, not legal advice.
@@ -100,6 +100,7 @@ RAN Sentinel is not a replacement for a vendor's SON or an operator's OSS. Large
 
 | Document | What it covers |
 |---|---|
+| [Complete user manual (PDF)](docs/PROJECT_COMPLETE_USER_MANUAL.pdf) | architecture, installation, a guide to every feature with annotated screenshots, the testing guide with real results, a 5 to 10 minute judges' demo, troubleshooting |
 | [Technical documentation (PDF)](docs/RAN_Sentinel_Technical_Documentation.pdf) | Part A: industry problems, market size (TAM/SAM/SOM), customer experience, ROI scenarios, competitors and rollout, with sources; Part B: the technical manual |
 | [System architecture](docs/SYSTEM_ARCHITECTURE.md) | roles, components, runtime model, incident lifecycle, agent loop, data flow, tech stack |
 | [AI agents and models](docs/AI_AGENTS_AND_MODELS.md) | every agent, its model and fallback, tools, limits, what is deterministic |
@@ -115,8 +116,8 @@ RAN Sentinel is not a replacement for a vendor's SON or an operator's OSS. Large
 ## Run it (Windows)
 
 ```powershell
-git clone https://github.com/AKMaasif/ran-sentinel.git
-cd ran-sentinel
+git clone https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-.git
+cd Meta-Ai-Global-Hackathon-Ran-Sentinel-
 ```
 
 You need Python 3.10 or newer. The quickest way is to double-click **`start.bat`**. On the first run it creates the virtual environment, installs the requirements and copies `.env.example` to `.env`; then it starts the server and opens the console in your browser. Put your key in `.env` before the next start.
@@ -157,6 +158,7 @@ The console follows the layout of a network operations (OSS) tool: a top bar wit
 | **Operate · Approvals** | One card per team with its queue, and the decisions waiting on each |
 | **Assure · Safety ledger** | The Evidence-to-Action Safety Ledger and the Muse Wonder shift handover |
 | **Assure · Model card** | Models, fallbacks and the measured accuracy |
+| **Customer support** | Help requests from the customer app: filter, search, reply, set status and priority |
 
 The status bar shows the telemetry window, AI calls and average latency, the twin and the M-Plane link. Search by incident ID, cell ID, site name or ZIP code.
 
@@ -184,7 +186,11 @@ A carrier self-service app with the usual pages: **Home**, **Network**, **Accoun
 Care Concierge on Muse Spark answers and operates the app (connection tests, opening pages, reports), and Gemini TTS speaks the
 answer sentence by sentence. Changes still need a spoken "yes" in a later turn or a tap on Confirm. See [docs/VOICE_AGENT.md](docs/VOICE_AGENT.md).
 
-The subscriber, account and bill are fictional demo data, and no payment is taken. The code is in `backend/app/care.py` and `frontend/connect/`.
+**Help and support.** The Help tab is a help center: search across 17 articles (each with steps and a real screenshot of the app), browse by topic, and expand the frequently asked questions. If an article doesn't solve it, **Contact support** opens a form (name, email, topic, subject, description) that is checked in the browser and again on the server. Each request gets an ID such as `CS-100001`, is saved in SQLite and appears under **My requests** with its status and the full conversation. The customer can reply, which reopens a resolved request, or close it. A dot on the Help tab shows when support has answered. Customers only ever see their own requests.
+
+In the operations console, **Customer support** is the agent's desk: filter by status and topic, search by ID, name, email or message text, open a request to read the conversation and the customer's other requests, reply, and change status or priority. Every change is written into the conversation. The code is in `backend/app/support.py`, and the routes are listed in [API and database](docs/API_AND_DATABASE.md#5-help-and-support).
+
+The subscriber, account and bill are fictional demo data, and no payment is taken. No email is sent for support requests; replies appear in the app only. The code is in `backend/app/care.py` and `frontend/connect/`.
 
 ## Maps and signal quality
 
@@ -310,13 +316,34 @@ After the full investigation, the correct root cause ranked first in 97.9% of si
 - **Voice agent:** spoken replies use Gemini TTS (Google), because Meta has no text-to-speech model yet; without a Google key the browser voice is used. Real-speech accuracy and latency are not yet measured.
 - **Reasoning effort:** the Meta API accepts every level (minimal to max) on Muse Spark 1.3 (`check_effort.py`, 2026-10-31). On a simple RCA question, minimal was right in 1.8 s with 134 tokens, against 3.2 s and 453 tokens with no setting. `AGENT_EFFORT` stays optional.
 
+## Folder structure
+
+```
+run.py, start.bat          start the server (start.bat also creates the venv and .env on first run)
+.env.example               every setting, with no secrets; copy it to .env
+requirements.txt           Python packages
+backend/app/               FastAPI app: main.py (routes), orchestrator.py, agents.py, simulator.py,
+                           detection.py, safety.py, mplane.py, care.py (customer app), support.py (help
+                           and support), store.py (SQLite), providers.py (Meta, Google), radio.py, twin.py
+frontend/ops/              operations console (/ops/)
+frontend/connect/          Northstar Connect customer app (/connect/); help/ holds the article screenshots
+frontend/shared/           shared UI helpers (in-place page updates, polling, API calls)
+tests/                     pytest suite (python -m pytest -q)
+scripts/                   live model checks, benchmarks and the browser checks (check_*.js)
+samples/                   sample field-evidence files for the demo
+docs/                      the user manual PDF, technical documentation PDF and the Markdown guides
+data/                      created at first run: sentinel.db (SQLite); ignored by git
+```
+
+The database needs no setup: `data/sentinel.db` is created on first start. To start clean, stop the server and delete that file.
+
 ## Tests
 
 ```powershell
 python -m pytest -q
 ```
 
-135 tests cover the safety rules, M-Plane rollback, detection (no false alerts on a normal day; every fault detected), all five fault scenarios end to end, and the Muse Spark code path. The Muse Spark tests use a scripted stand-in for the API, covering tool calls, the repair loop, the evidence loop, the customer-text filter, model fallback and full outage. Further tests cover:
+177 tests cover the safety rules, M-Plane rollback, detection (no false alerts on a normal day; every fault detected), all five fault scenarios end to end, and the Muse Spark code path. The Muse Spark tests use a scripted stand-in for the API, covering tool calls, the repair loop, the evidence loop, the customer-text filter, model fallback and full outage. Further tests cover:
 - the FCC check, the ZIP-aware assistant, the reviewer and reporter agents, and the TelecomTS pipeline;
 - the SAM and voice request formats, against a mock HTTP server;
 - photo evidence and the voice-intent hints;
@@ -328,6 +355,9 @@ python -m pytest -q
 - the live agent audit script, run against a scripted stand-in;
 - the verifier (playbook coverage, fact lookup, made-up numbers and unsupported claims refused, escalation after 3 refusals), the field-evidence pause and resume, root-cause sign-off and dispute;
 - the living plan, one tool per turn, and resuming after an API failure at the investigate and plan steps, by button and automatically;
-- the voice agent (later-turn confirmation, instant commands, Gemini request format) and per-agent reasoning effort.
+- the voice agent (later-turn confirmation, instant commands, Gemini request format) and per-agent reasoning effort;
+- help and support (`tests/test_support.py`, 42 tests): form validation field by field, ticket IDs, saving across restarts, customers seeing only their own requests, every route refusing a signed-out user or the wrong portal, the full reply and status flow, filters and search, the 20-open-request limit, and help search and articles.
+
+The help and support screens are checked in a real browser by `node scripts\check_support_ui.js` (53 checks at phone, tablet and desktop sizes: search, empty states, form errors, sending a request, replies, the unread dot, closing, the ops desk filters, reply and status change, keyboard focus and no horizontal scrolling). It needs the app running.
 
 The live refresh is checked in a real browser by `node scripts\check_live_refresh.js` (12 checks: no screen rebuilds, clicks and taps that span a refresh, typed text, scroll and map kept, one request at a time on a slow backend, and the lost-connection state). It needs Node.js and Playwright and the app running; see [Setup](docs/SETUP_AND_DEPLOYMENT.md#7-tests).

@@ -752,11 +752,13 @@ CARE_TOOLS = [
 ]
 
 
-PAGES = {"home": "Home", "network": "Network", "account": "Account", "bill": "Bill", "help": "Help",
+PAGES = {"home": "Home", "network": "Network", "account": "Account", "bill": "Bill", "help": "Help center",
+         "assistant": "Assistant", "support": "Support requests",
          "notifications": "Notifications", "report": "Report a problem", "shop": "Shop"}
 PAGE_WORDS = {"home": {"home", "start"}, "network": {"network", "coverage", "map", "towers", "status"},
               "account": {"account", "profile", "settings"}, "bill": {"bill", "billing", "payment", "payments"},
-              "help": {"help", "chat", "assistant"}, "notifications": {"notifications", "alerts", "messages"},
+              "help": {"help", "faq", "faqs", "articles"}, "assistant": {"chat", "assistant"},
+              "support": {"support", "tickets", "ticket", "requests"}, "notifications": {"notifications", "alerts", "messages"},
               "report": {"report"}, "shop": {"shop", "store", "phones", "plans"}}
 YES = re.compile(r"\b(yes|yeah|yep|yup|sure|ok(ay)?|go ahead|do it|please do|confirm(ed)?|send it|apply it|turn it on|correct|right)\b", re.I)
 NO = re.compile(r"\b(no|nope|don'?t|do not|cancel|stop|not now|never mind|wait)\b", re.I)

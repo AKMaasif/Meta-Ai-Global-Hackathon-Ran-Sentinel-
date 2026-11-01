@@ -32,11 +32,12 @@ const ICON = {
   model: '<path d="M4 19V5M4 19h16"/><path d="M7 15l4-4 3 3 5-6"/>',
   demo: '<path d="M10 2v6L4 20h16L14 8V2"/><path d="M8 2h8"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  support: '<path d="M4 13a8 8 0 0 1 16 0"/><rect x="3" y="13" width="4" height="6" rx="1.5"/><rect x="17" y="13" width="4" height="6" rx="1.5"/><path d="M20 19a3 3 0 0 1-3 3h-3"/>',
 };
 const ico = (n, s = 18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
 const NAV = [
   ["Monitor", [["dashboard", "Network overview", "overview"], ["alarms", "Alarm monitor", "alarms"], ["cells", "Cell explorer", "cells"]]],
-  ["Operate", [["incidents", "Incidents", "incidents"], ["departments", "Approvals", "approvals"]]],
+  ["Operate", [["incidents", "Incidents", "incidents"], ["departments", "Approvals", "approvals"], ["support", "Customer support", "support"]]],
   ["Assure", [["ledger", "Safety ledger", "ledger"], ["model", "Model card", "model"]]],
 ];
 
@@ -49,6 +50,7 @@ function route() {
   if (page === "cells") { if (arg) selectedCell = arg; return live(renderCells, 4000); }
   if (page === "alarms") return live(renderAlarms, 3000);
   if (page === "departments") return live(renderDepartments);
+  if (page === "support") return live(arg ? () => renderSupportTicket(arg) : renderSupport, 4000);
   if (page === "ledger") return live(renderLedger, 4000);
   if (page === "model") return live(renderModelCard, 15000);
   return live(renderDashboard);
@@ -88,7 +90,7 @@ function shell(active, inner) {
   const ac = (st && st.alarm_counts) || {};
   const badge = (k) => {
     if (!st) return "";
-    const n = { alarms: st.unacked_alarms, departments: st.summary.pending_tickets, incidents: st.summary.open_incidents }[k];
+    const n = { alarms: st.unacked_alarms, departments: st.summary.pending_tickets, incidents: st.summary.open_incidents, support: st.summary.support_unread }[k];
     return n ? `<em>${n}</em>` : "";
   };
   return `<div class="shell ${ui.demoOpen ? "with-drawer" : ""}">
@@ -224,7 +226,7 @@ async function renderDashboard() {
     <div class="pagehead"><div><div class="crumb">Monitor / Network overview</div><h1>Seattle cluster</h1>
       <p class="sub">${s.cells} LTE cells on ${new Set(st.cells.map((c) => c.site)).size} sites · B66 AWS-3, B2 PCS, B71 600 MHz</p></div>
       <div class="headright">${chip(s.network_status, statusKind)}<span class="small muted mono">ROP ${hhmm(st.sim_time)} ${esc(st.market.tz_label)}</span></div></div>
-    ${st.offline ? `<div class="banner warn">No Meta key found, so the agents use the offline rules engine. Add MODEL_API_KEY to ran-sentinel/.env and restart.</div>` : ""}
+    ${st.offline ? `<div class="banner warn">No Meta key found, so the agents use the offline rules engine. Add MODEL_API_KEY to the .env file in the project folder and restart.</div>` : ""}
     <section class="tiles">${tiles.map(([n, k, u, d, c]) => `<div class="tile"><span class="label">${n}</span><span class="v">${last(k) == null ? "–" : Number(last(k)).toFixed(d)}<small>${u}</small></span>${spark(H.map((h) => h[k]), c)}<span class="small muted">cluster average, 12 h</span></div>`).join("")}
       <div class="tile"><span class="label">Open incidents</span><span class="v">${s.open_incidents}${s.critical ? `<small class="bad">${s.critical} critical</small>` : ""}</span><span class="small muted">${s.watch} cells on watch</span><span class="small muted">${s.pending_tickets} waiting on a team</span></div></section>
     <div class="layout">
@@ -959,3 +961,91 @@ py scripts/benchmark_telecomts.py</pre><p class="small muted">The script downloa
 }
 
 route();
+
+const SUP_TONE = { open: "info", in_progress: "brand", waiting_customer: "warn", resolved: "ok", closed: "" };
+const PRI_TONE = { low: "", normal: "info", high: "warn", urgent: "bad" };
+const supWhen = (iso) => (iso ? `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC` : "–");
+async function renderSupport() {
+  const qs = new URLSearchParams({ status: ui.supStatus || "active", category: ui.supCat || "all", q: ui.supText || "" });
+  const [d] = await Promise.all([api("/api/support/tickets?" + qs), getState()]);
+  const c = d.counts, active = c.open + c.in_progress + c.waiting_customer;
+  const seg = [["active", "Active", active], ["open", "Open", c.open], ["in_progress", "In progress", c.in_progress], ["waiting_customer", "Waiting for customer", c.waiting_customer], ["resolved", "Resolved", c.resolved], ["closed", "Closed", c.closed], ["all", "All", Object.values(c).reduce((a, b) => a + b, 0)]];
+  paint("support", `<div class="pagehead"><div><div class="crumb">Operate / Customer support</div><h1>Customer support desk</h1>
+      <p class="sub">Requests sent from the Help center in Northstar Connect. Reply, set the status and priority; the customer sees your reply in the app.</p></div></div>
+    <div class="stats"><div class="stat"><span class="label">Active</span><span class="v">${active}</span></div><div class="stat"><span class="label">Unread</span><span class="v">${d.unread}</span></div>
+      <div class="stat"><span class="label">Waiting for customer</span><span class="v">${c.waiting_customer}</span></div><div class="stat"><span class="label">Resolved</span><span class="v">${c.resolved}</span></div></div>
+    <section class="panel flat"><header class="toolbar"><div class="seg" role="group" aria-label="Filter by status">${seg.map(([k, l, n]) => `<button class="${(ui.supStatus || "active") === k ? "on" : ""}" data-ss="${k}" aria-pressed="${(ui.supStatus || "active") === k}">${l}<span class="n">${n}</span></button>`).join("")}</div>
+      <select id="sup-cat" class="filter" aria-label="Filter by category" style="min-width:0;flex:none;width:auto"><option value="all">All categories</option>${Object.entries(d.categories).map(([k, l]) => `<option value="${k}" ${ui.supCat === k ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>
+      <input id="sup-q" type="search" class="filter" placeholder="Search ID, subject, customer or message" value="${esc(ui.supText || "")}" aria-label="Search support tickets">
+      <span class="small muted">${d.tickets.length} shown</span></header>
+      <div class="body tablewrap">${d.tickets.length ? `<table class="dense"><thead><tr><th>Ticket</th><th>Opened</th><th>Subject</th><th>Customer</th><th>Category</th><th>Priority</th><th>Status</th><th>Updated</th></tr></thead><tbody>
+        ${d.tickets.map((t) => `<tr class="click ${t.unread_staff ? "unread" : ""}" data-sup="${esc(t.id)}" tabindex="0"><td class="mono">${t.unread_staff ? `<i class="newdot" title="New customer message"></i>` : ""}${esc(t.id)}</td><td class="mono small">${esc(supWhen(t.created))}</td>
+          <td>${esc(t.subject)}</td><td>${esc(t.name)}<div class="small muted">${esc(t.email)}</div></td><td class="small">${esc(t.category_label)}</td><td>${chip(t.priority_label, PRI_TONE[t.priority])}</td><td>${chip(t.status_label, SUP_TONE[t.status])}</td><td class="mono small">${esc(supWhen(t.updated))}</td></tr>`).join("")}</tbody></table>`
+        : `<p class="empty pad">${ui.supText ? `No tickets match “${esc(ui.supText)}”.` : "No tickets with this status. Customers create tickets from Help, Contact support in Northstar Connect."}</p>`}</div></section>`);
+  document.querySelectorAll("[data-ss]").forEach((b) => (b.onclick = () => { ui.supStatus = b.dataset.ss; refresh(); }));
+  document.getElementById("sup-cat").onchange = (e) => { ui.supCat = e.target.value; refresh(); };
+  const q = document.getElementById("sup-q");
+  q.onkeydown = (e) => { if (e.key === "Enter") { ui.supText = q.value; q.blur(); refresh(); } };
+  q.onsearch = q.onchange = () => { ui.supText = q.value; refresh(); };
+  document.querySelectorAll("tr[data-sup]").forEach((tr) => {
+    tr.onclick = () => (location.hash = "#/support/" + tr.dataset.sup);
+    tr.onkeydown = (e) => { if (e.key === "Enter") tr.onclick(); };
+  });
+}
+
+async function renderSupportTicket(id) {
+  let t;
+  try { [t] = await Promise.all([api("/api/support/tickets/" + encodeURIComponent(id)), getState()]); }
+  catch (e) {
+    if (e.status === 401) throw e;
+    paint("support", `<div class="pagehead"><div><div class="crumb">Operate / Customer support</div><h1>Ticket not found</h1></div></div>
+      <section class="panel"><div class="body"><p>${esc(e.message)}</p><div class="row"><a class="btn" href="#/support">Back to the support desk</a></div></div></section>`);
+    return;
+  }
+  const closed = t.status === "closed";
+  const msg = (m) => m.role === "system" ? `<li class="sys"><span>${esc(m.body)}</span> <span class="mono small muted">${esc(supWhen(m.created))}</span></li>`
+    : `<li class="m ${m.role}"><div class="mh"><b>${esc(m.author)}</b><span class="small muted">${m.role === "customer" ? "Customer" : "Care team"}</span><span class="mono small muted">${esc(supWhen(m.created))}</span></div><p>${esc(m.body)}</p></li>`;
+  paint("support", `<div class="pagehead"><div><div class="crumb"><a href="#/support">Operate / Customer support</a> / ${esc(t.id)}</div><h1>${esc(t.subject)}</h1>
+      <p class="sub">${chip(t.status_label, SUP_TONE[t.status])} ${chip(t.priority_label + " priority", PRI_TONE[t.priority])} <span class="small muted">${esc(t.category_label)} · opened ${esc(supWhen(t.created))}</span></p></div>
+      <a class="btn" href="#/support">All tickets</a></div>
+    <div class="grid cols-2">
+      <div class="grid" style="gap:14px;align-content:start">
+        <section class="panel"><header><h2>Conversation</h2><span class="small muted">${t.messages.filter((m) => m.role !== "system").length} messages</span></header>
+          <div class="body"><ol class="supthread">${t.messages.map(msg).join("")}</ol></div></section>
+        ${closed ? `<section class="panel"><div class="body"><p class="small muted">This ticket is closed. Reopen it with the status control to reply.</p></div></section>`
+          : `<section class="panel" id="sreply-${esc(t.id)}" data-keep><header><h2>Reply to ${esc(t.name)}</h2></header><div class="body"><form id="srf" class="grid" style="gap:10px" novalidate>
+            <div class="field"><label for="sbody">Message to the customer</label><textarea id="sbody" rows="5" maxlength="4000" placeholder="Write a clear answer. The customer reads it in the app." aria-describedby="serr"></textarea></div>
+            <div class="row"><label class="small" for="safter">After sending, set status to</label><select id="safter" style="width:auto">${["waiting_customer", "in_progress", "resolved"].map((k) => `<option value="${k}">${esc(t.statuses[k])}</option>`).join("")}</select>
+              <button class="btn primary" type="submit">Send reply</button></div><p class="err" id="serr" role="alert" hidden></p></form></div></section>`}
+      </div>
+      <div class="grid" style="gap:14px;align-content:start">
+        <section class="panel"><header><h2>Ticket</h2></header><div class="body">
+          <dl class="kv"><dt>Reference</dt><dd class="mono">${esc(t.id)}</dd><dt>Customer</dt><dd>${esc(t.name)}</dd><dt>Reply email</dt><dd>${esc(t.email)}</dd><dt>Account login</dt><dd>${esc(t.owner)}</dd>
+            <dt>Assignee</dt><dd>${esc(t.assignee || "Unassigned")}</dd><dt>First response</dt><dd>${esc(t.first_response ? supWhen(t.first_response) : "Not yet")}</dd><dt>Updated</dt><dd>${esc(supWhen(t.updated))}</dd></dl>
+          <form id="suf-${esc(t.id)}-${t.status}-${t.priority}" class="grid" style="gap:10px" data-keep>
+            <div class="field"><label for="sstatus">Status</label><select id="sstatus">${Object.entries(t.statuses).map(([k, l]) => `<option value="${k}" ${t.status === k ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></div>
+            <div class="field"><label for="sprio">Priority</label><select id="sprio">${Object.entries(t.priorities).map(([k, l]) => `<option value="${k}" ${t.priority === k ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></div>
+            <div class="row"><button class="btn" type="submit">Save changes</button></div><p class="err" id="suerr" role="alert" hidden></p></form></div></section>
+        <section class="panel"><header><h2>Other requests from this customer</h2></header><div class="body">${t.history.length ? `<div class="list">${t.history.map((h) => `<a class="supother" href="#/support/${esc(h.id)}"><span class="mono">${esc(h.id)}</span> ${esc(h.subject)} ${chip(h.status_label, SUP_TONE[h.status])}</a>`).join("")}</div>` : `<p class="empty">No other requests.</p>`}</div></section>
+      </div></div>`);
+  const uf = document.getElementById(`suf-${t.id}-${t.status}-${t.priority}`);
+  uf.onsubmit = async (e) => {
+    e.preventDefault();
+    const err = uf.querySelector("#suerr"); err.hidden = true;
+    busy = true;
+    try { await api(`/api/support/tickets/${encodeURIComponent(t.id)}/update`, { body: { status: uf.querySelector("#sstatus").value, priority: uf.querySelector("#sprio").value } }); }
+    catch (x) { if (x.status === 401) throw x; err.textContent = x.message; err.hidden = false; }
+    busy = false; refresh();
+  };
+  if (closed) return;
+  const box = document.getElementById("sreply-" + t.id);
+  box.querySelector("#srf").onsubmit = async (e) => {
+    e.preventDefault();
+    const body = box.querySelector("#sbody"), err = box.querySelector("#serr"); err.hidden = true;
+    if (!body.value.trim()) { err.textContent = "Write a message first."; err.hidden = false; body.focus(); return; }
+    busy = true;
+    try { await api(`/api/support/tickets/${encodeURIComponent(t.id)}/reply`, { body: { body: body.value, status: box.querySelector("#safter").value } }); body.value = ""; }
+    catch (x) { if (x.status === 401) throw x; err.textContent = x.message; err.hidden = false; }
+    busy = false; refresh();
+  };
+}

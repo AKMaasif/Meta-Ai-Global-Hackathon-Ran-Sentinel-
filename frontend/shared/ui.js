@@ -45,7 +45,7 @@ const UI = (() => {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const d = data.detail, msg = (d && d.message) || (typeof d === "string" && d) || (res.status === 401 ? "Please sign in." : `Request failed (${res.status})`);
-      const e = new Error(msg); e.status = res.status; e.portal = d && d.portal; throw e;
+      const e = new Error(msg); e.status = res.status; e.portal = d && d.portal; e.fields = (d && d.fields) || {}; throw e;
     }
     return data;
   }
@@ -244,7 +244,7 @@ const UI = (() => {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const d = data.detail, msg = (d && d.message) || (typeof d === "string" && d) || (res.status === 401 ? "Please sign in." : `Request failed (${res.status})`);
-      const e = new Error(msg); e.status = res.status; e.portal = d && d.portal; throw e;
+      const e = new Error(msg); e.status = res.status; e.portal = d && d.portal; e.fields = (d && d.fields) || {}; throw e;
     }
     return data;
   }
