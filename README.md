@@ -6,6 +6,8 @@ RAN Sentinel watches a cluster of LTE cells in Seattle, WA (US bands B66, B2 and
 
 Everything runs on a **simulated** network. Nothing here connects to a real operator.
 
+> **Original work:** all the code, both apps, the simulator, the tests and the documentation in this repository were built from scratch between 26 October and 4 November 2026. Meta's models are called over the API, and Maveric and the open-source libraries are used under their licences. [CONTRIBUTIONS.md](CONTRIBUTIONS.md) lists exactly what was built and what was not.
+
 ## Highlights
 
 - **Verified investigation.** Every diagnosis passes a verifier the agents cannot skip. The agent pauses to ask a field engineer when the data cannot settle a cause, keeps a living plan, works one tool per turn, resumes from its last step after an API failure, and an engineer signs off the root cause. The design follows the patterns in Meta's [legal-agent workshop](https://github.com/meta-models/legal-agent-workshop) ([details](docs/VERIFIED_INVESTIGATION.md)).
@@ -333,7 +335,7 @@ The database needs no setup: `data/sentinel.db` is created on first start. To st
 
 ## Third-party components
 
-Used under their own licences:
+The full split between original work and third-party parts is in [CONTRIBUTIONS.md](CONTRIBUTIONS.md). Used under their own licences:
 - **Libraries:** FastAPI, Uvicorn, NumPy and httpx (MIT or BSD); scikit-learn (BSD); the OpenAI Python SDK (Apache-2.0), used as the client for Meta's OpenAI-compatible endpoint; python-dotenv (BSD).
 - **Maps:** Leaflet 1.9.4 (BSD-2), topojson-client 3.1.0 (ISC) and us-atlas 3.0.1 state boundaries (ISC; data from the US Census Bureau), bundled. Street tiles © OpenStreetMap contributors and © CARTO, loaded online only.
 - **Fonts:** IBM Plex (SIL OFL).
