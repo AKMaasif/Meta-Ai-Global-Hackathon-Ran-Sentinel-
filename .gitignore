@@ -22,3 +22,8 @@ maveric/
 node_modules/
 package-lock.json
 *.tgz
+
+submission/
+submission.zip
+SUBMISSION.md
+FORM_ANSWERS.md
