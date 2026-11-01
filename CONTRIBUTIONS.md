@@ -21,7 +21,7 @@ About 13,000 lines of Python, JavaScript and CSS, plus the documentation.
 | Customer app | Northstar Connect: home, network, account, bill, alerts, outage credits, Care Concierge, voice agent, help center and support tickets | `frontend/connect/`, `backend/app/care.py`, `support.py` |
 | Live updates | In-place page patching and serial polling | `frontend/shared/ui.js` |
 | Security | Portal-bound sessions, login lockout, file upload checks | `backend/app/main.py` |
-| Tests | 177 pytest tests and two Playwright browser checks | `tests/`, `scripts/check_*.js` |
+| Tests | 178 pytest tests and two Playwright browser checks | `tests/`, `scripts/check_*.js` |
 | Documentation | README, docs/ guides, user manual and technical documentation PDFs, sample field-evidence files (drawn illustrations) | `docs/`, `samples/` |
 
 ## Not built for this project (used under their licences)
