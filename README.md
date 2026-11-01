@@ -16,7 +16,7 @@ Everything runs on a **simulated** network. Nothing here connects to a real oper
 - **Detection benchmarked** on the open TelecomTS dataset.
 - **Customer side:** plain-language network updates, a hands-free **voice agent** that operates the app ([details](docs/VOICE_AGENT.md)), and a help center with support requests.
 - **Demo controls** for live fault injection, plus red-team, twin outage, diagnostics outage and model outage switches that show every safety path. A guided walkthrough is in [DEMO.md](DEMO.md).
-- **178 automated tests.** The code is MIT-licensed ([LICENSE](LICENSE)).
+- **179 automated tests.** The code is MIT-licensed ([LICENSE](LICENSE)).
 
 What's built for the US market:
 - **FCC Part 4 outage check** (47 CFR 4.9(e)). It tracks user-minutes for every outage and, when a wireless outage passes 30 minutes and 900,000 user-minutes, opens a Regulatory Compliance ticket with the 120-minute, 72-hour and 30-day deadlines. Set `FCC_USERS_PER_SITE` in `.env`. This is decision support, not legal advice.
@@ -349,7 +349,7 @@ Open M-Plane and Maveric are referenced, not bundled. No Meta or vendor endorsem
 python -m pytest -q
 ```
 
-178 tests cover the safety rules, M-Plane rollback, detection (no false alerts on a normal day; every fault detected), all five fault scenarios end to end, and the Muse Spark code path. The Muse Spark tests use a scripted stand-in for the API, covering tool calls, the repair loop, the evidence loop, the customer-text filter, model fallback and full outage. Further tests cover:
+179 tests cover the safety rules, M-Plane rollback, detection (no false alerts on a normal day; every fault detected), all five fault scenarios end to end, and the Muse Spark code path. The Muse Spark tests use a scripted stand-in for the API, covering tool calls, the repair loop, the evidence loop, the customer-text filter, model fallback and full outage. Further tests cover:
 - the FCC check, the ZIP-aware assistant, the reviewer and reporter agents, and the TelecomTS pipeline;
 - the SAM and voice request formats, against a mock HTTP server;
 - photo evidence and the voice-intent hints;

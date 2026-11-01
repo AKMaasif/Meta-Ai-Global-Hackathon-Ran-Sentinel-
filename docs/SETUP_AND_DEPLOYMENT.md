@@ -166,7 +166,7 @@ Benchmarks: `py scripts\benchmark_simulator.py`. For TelecomTS, `pip install hug
 
 ## 9. Verification checklist
 
-- [ ] `python -m pytest -q` reports all tests passed (178 at the time of writing).
+- [ ] `python -m pytest -q` reports all tests passed (179 at the time of writing).
 - [ ] `node scripts/check_support_ui.js` reports all 53 support UI checks passed (app running).
 - [ ] `py scripts\check_meta.py` passes for every model you use.
 - [ ] `py scripts\audit_agents.py` ends with "All agents passed live."

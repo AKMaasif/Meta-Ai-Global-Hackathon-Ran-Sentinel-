@@ -85,3 +85,23 @@ def test_non_config_plan_skips_sandbox():
     r = check(plan(cause="hardware_fault", action={"type": "no_config_change", "cell_id": "SEA-RAN-001"}, rollback={},
                    prerequisite_checks=["vswr_and_power_readback"]), sandbox=None)
     assert r["passed"], r
+
+
+def test_twin_hint_points_planner_to_an_action_that_meets_the_target():
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent))
+    from conftest import offline_settings, run_until
+    from app.orchestrator import Sentinel
+    from app.providers import OfflineProvider
+    from app.store import Store
+    sen = Sentinel(offline_settings(), Store(":memory:"), OfflineProvider())
+    sen.sync = True
+    sen.inject("SEA-RAN-010", "capacity_surge", 3)
+    inc = run_until(sen, "SEA-RAN-010", ticks=8)
+    running = sen.mplane.get_config("SEA-RAN-010")["running"]
+    diag = {"hypotheses": [{"cause": "capacity_congestion"}]}
+    plan = {"action": {"type": "adjust_tilt", "cell_id": "SEA-RAN-010", "delta": 2.0}}
+    hint = sen._twin_hint(inc, diag, plan, running, {"failed": ["Sandbox impact"]})
+    assert hint and hint["status"] == "INFO" and "adjust_tx_power -3" in hint["reason"]
+    assert sen._twin_hint(inc, diag, plan, running, {"failed": ["Step within limit"]}) is None

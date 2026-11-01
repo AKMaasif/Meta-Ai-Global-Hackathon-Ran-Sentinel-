@@ -15,7 +15,7 @@ from .config import Settings
 from .detection import Detector, features
 from .mplane import MPlaneClient, MPlaneError
 from .providers import ProviderError, make_provider
-from .safety import ACTIONS, DEPARTMENTS, department_for, validate_plan
+from .safety import ACTIONS, DEPARTMENTS, FITS, TARGETS, department_for, validate_plan
 from .simulator import NetworkSimulator, training_rows
 from .store import Store
 from .tools import Toolbox
@@ -251,6 +251,9 @@ class Sentinel:
                     chosen = rec
                     break
                 feedback = [r for r in val["rules"] if r["status"] == "FAIL"]
+                hint = self._twin_hint(inc, diag, p, running, val) if attempt < attempts else None
+                if hint:
+                    feedback.append(hint)
                 if attempt == attempts:
                     return self.escalate(inc, f"Plan rejected {attempts} times; last failures: {', '.join(val['failed'])}")
                 self._log(inc, "orchestrator", "plan_retry", f"Retry {attempt} of {self.s.max_plan_retries}: sending reasons back to the planner")
@@ -456,6 +459,40 @@ class Sentinel:
             self._stage(inc, "sandbox", "fail", "not simulated")
             self._log(inc, "twin", "twin_unavailable", f"What-if not run: {e}. Plan flagged 'not simulated' for engineer review")
             return None, str(e)
+
+    def _twin_hint(self, inc, diag, p, running, val):
+        if val["failed"] != ["Sandbox impact"]:
+            return None
+        cause = diag["hypotheses"][0]["cause"]
+        target = TARGETS.get(cause)
+        cur = (p.get("action") or {}).get("type")
+        if not target:
+            return None
+        k, lim = target
+        tried = []
+        for alt in sorted(FITS.get(cause, set())):
+            spec = ACTIONS.get(alt) or {}
+            if alt == cur or not spec.get("param"):
+                continue
+            delta = spec["max_step"] if alt == "adjust_tilt" else -spec["max_step"]
+            new = running[spec["param"]] + delta
+            lo, hi = spec["bounds"]
+            if not lo <= new <= hi:
+                continue
+            try:
+                res = self.twin.simulate(inc["cell_id"], {spec["param"]: new})
+            except TwinUnavailable:
+                continue
+            ok = (res["after"][k] <= lim and res["coverage_loss_pct"] <= res["limits"]["coverage_loss_pct"]
+                  and (res.get("neighbour_after_prb") or 0) <= res["limits"]["neighbour_prb"])
+            tried.append(f"{alt} {delta:+g} gives {k} {res['before'][k]}→{res['after'][k]}, neighbour "
+                         f"{res.get('neighbour_after_prb')}%, coverage loss {res['coverage_loss_pct']}%"
+                         + (" (meets every limit)" if ok else ""))
+        if not tried:
+            return None
+        self._log(inc, "twin", "twin_hint", "Twin tried the other allowed actions for the planner: " + "; ".join(tried))
+        return {"rule": "Twin what-if of other allowed actions", "status": "INFO",
+                "reason": "A single step of your action cannot reach the target. " + "; ".join(tried)}
 
     def _second_opinion(self, inc, diag, rec, ctx):
         self._stage(inc, "second_opinion", "running", "")

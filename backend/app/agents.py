@@ -461,6 +461,8 @@ def plan(ctx: AgentContext, diagnosis: dict, running: dict, feedback: list[dict]
                   "Read-only checks come first. Use only actions from the catalogue, respect the step limits, and give a "
                   "rollback that restores the current running value with a clear trigger. If the cause cannot be fixed by "
                   "configuration (interference, hardware), use no_config_change and describe the field/RF action in the summary. "
+                  "If a previous attempt was rejected and the feedback includes a twin what-if of other allowed actions, "
+                  "switch to the action the twin says meets every limit instead of repeating the rejected one. "
                   f"Action catalogue: {json.dumps(catalogue)}. Allowed actions per cause: "
                   f"{json.dumps({k: sorted(v) for k, v in FITS.items()})}. Read-only checks: {list(READ_ONLY_CHECKS)}. "
                   + UNTRUSTED +
