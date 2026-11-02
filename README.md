@@ -2,7 +2,7 @@
 
 An AI co-engineer for mobile networks, built on Meta's Muse models.
 
-![Animated RAN Sentinel workflow: detect, investigate, verify, plan and check, engineer review, and recovery monitoring](docs/assets/ran-sentinel-workflow.gif)
+![Network signals flow through KPI, alarm and configuration evidence into an incident record](docs/assets/ran-sentinel-hero.svg)
 
 *An illustrative workflow animation, not a live connection or a recording. The prototype operates on a simulated network.*
 
@@ -35,6 +35,18 @@ Everything runs on a **simulated** network. Nothing here connects to a real oper
 - **Customer side:** plain-language network updates, a hands-free **voice agent** that operates the app ([details](docs/VOICE_AGENT.md)), and a help center with support requests.
 - **Demo controls** for live fault injection, plus red-team, twin outage, diagnostics outage and model outage switches that show every safety path. A guided walkthrough is in [DEMO.md](DEMO.md).
 - **179 automated tests.** The code is MIT-licensed ([LICENSE](LICENSE)).
+
+## Follow the evidence
+
+![Animated investigation: read-only KPI, alarm and configuration tools feed Muse Spark; hypotheses are compared and facts verified, with a loop for field evidence](docs/assets/ran-sentinel-investigation.svg)
+
+The investigator retrieves evidence through tools. The analyst compares possible causes, and the verifier checks the evidence and facts. If the available data cannot settle the cause, the workflow can pause for field input and resume afterward. [Explore the verified investigation](docs/VERIFIED_INVESTIGATION.md).
+
+## From proposal to outcome
+
+![Animated safety path: a proposed plan passes rules and twin checks, an engineer reviews it, and recovery monitoring leads to the ledger and customer updates; rejected plans return for revision](docs/assets/ran-sentinel-safety.svg)
+
+Proposals include rollback instructions. Rules and a twin what-if evaluate the plan before engineer review; approved changes apply to simulated radio units, then recovery is monitored. The ledger records the process and the customer app presents customer-safe updates. These animations illustrate the design; the videos above show the application.
 
 What's built for the US market:
 - **FCC Part 4 outage check** (47 CFR 4.9(e)). It tracks user-minutes for every outage and, when a wireless outage passes 30 minutes and 900,000 user-minutes, opens a Regulatory Compliance ticket with the 120-minute, 72-hour and 30-day deadlines. Set `FCC_USERS_PER_SITE` in `.env`. This is decision support, not legal advice.
