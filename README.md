@@ -12,10 +12,12 @@ An AI co-engineer for mobile networks, built on Meta's Muse models.
 
 [![Watch the RAN Sentinel technical demo on YouTube](docs/assets/ran-sentinel-demo-thumbnail.png)](https://www.youtube.com/watch?v=hcaJiB8FBA8)
 
-**[Watch the technical demo →](https://www.youtube.com/watch?v=hcaJiB8FBA8)**  
+**[Watch the technical demo →](https://www.youtube.com/watch?v=hcaJiB8FBA8)**
+
 See the application and its engineering workflow. The preview opens the video on YouTube.
 
-**[Watch the customer-experience film →](https://www.youtube.com/watch?v=3wnNHKDH-lE)**  
+**[Watch the customer-experience film →](https://www.youtube.com/watch?v=3wnNHKDH-lE)**
+
 Explore the product vision for clearer customer updates and less repetitive investigation work.
 
 RAN Sentinel watches a cluster of LTE cells in Seattle, WA (US bands B66, B2 and B71) and spots a degrading cell. Muse Spark agents investigate it with read-only tools and propose a fix. Fixed safety rules and a digital twin check that fix before anyone sees it. The recommendation then goes to the right department. When a configuration change is approved, it is sent as an Open M-Plane change package with automatic rollback, and the cell is watched until it recovers. Customers of the fictional operator **Northstar Connect** see only confirmed, plain-language updates.
