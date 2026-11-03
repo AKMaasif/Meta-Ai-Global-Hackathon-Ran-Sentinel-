@@ -1,0 +1,59 @@
+name: Install on Linux and macOS
+
+on:
+  push:
+    paths:
+      - '.github/workflows/local-install.yml'
+      - 'backend/**'
+      - 'frontend/**'
+      - 'tests/**'
+      - 'scripts/check_local_install.py'
+      - 'requirements.txt'
+      - 'run.py'
+  pull_request:
+    paths:
+      - '.github/workflows/local-install.yml'
+      - 'backend/**'
+      - 'frontend/**'
+      - 'tests/**'
+      - 'scripts/check_local_install.py'
+      - 'requirements.txt'
+      - 'run.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-install:
+    name: '${{ matrix.os }} / Python 3.14'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    env:
+      MODEL_API_KEY: ''
+      GOOGLE_API_KEY: ''
+      FIREWORKS_API_KEY: ''
+      MAVERIC_URL: ''
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14'
+      - name: Record the test environment
+        run: |
+          uname -srm
+          python3 --version
+      - name: Follow the manual installation commands
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install -r requirements.txt
+          cp .env.example .env
+          .venv/bin/python -m pip check
+      - name: Start the app and check both portals
+        run: .venv/bin/python scripts/check_local_install.py
+      - name: Run the application tests
+        run: .venv/bin/python -m pytest tests -q
