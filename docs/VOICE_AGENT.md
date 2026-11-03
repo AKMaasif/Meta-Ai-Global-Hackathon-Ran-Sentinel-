@@ -82,6 +82,7 @@ Add your own `MODEL_API_KEY` and `GOOGLE_API_KEY` to `.env`, then restart the ap
 - `python scripts/check_voice_agent.py` checks a scripted conversation and Gemini speech through the configured providers. `--audio path.wav` also checks transcription. These calls can consume API credits.
 - `python -m pytest tests/test_voice_memory.py tests/test_voice_agent.py -q` checks voice and memory behavior offline.
 - `node scripts/check_voice_ui.js` and `node scripts/check_voice_memory_ui.js` check browser behavior on an isolated offline demo. They create fictional reports and change settings; see the [memory verification instructions](VOICE_CONVERSATION_MEMORY.md#verification).
+- On macOS, `python scripts/check_safari_ui.py` checks the actual Safari browser, including synthetic audio recording and WAV conversion. It needs the optional `selenium` package and Apple's Safari remote automation enabled. The [verification record](LOCAL_INSTALL_VERIFICATION.md) links the successful hosted run.
 
 Live Meta follow-ups, speech generation and a transcription round trip have been checked. Recognition accuracy and complete conversation latency on real customer devices have not been benchmarked. Memory is bounded and session-based, rather than permanent recall.
 

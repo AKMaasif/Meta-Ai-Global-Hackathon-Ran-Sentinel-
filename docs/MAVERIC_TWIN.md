@@ -77,3 +77,7 @@ call fails or times out (`MAVERIC_TIMEOUT_SECONDS`, default 90). The "Twin outag
 - The training data is modelled, not a drive test. Maveric reproduces the radio model closely; it does not add real-world
   propagation. With real drive-test or MDT data the same script would train on measurements instead.
 - Maveric predicts tilt effects. Power is applied as a dB offset on its prediction.
+
+## Fresh setup verification (4 November 2026)
+
+A separate Windows Docker/Linux-container project built and started from an upstream checkout, trained a 36-cell model on 12,960 rows in 30 seconds, and passed tilt/power what-if requests plus RAN Sentinel integration. The Windows Kafka line-ending fix above was required. See the [verification record](LOCAL_INSTALL_VERIFICATION.md) for scope and results.

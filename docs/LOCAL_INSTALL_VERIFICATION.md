@@ -1,5 +1,33 @@
 # Local installation verification
 
+## Native Safari, audio and Docker — 4 November 2026
+
+### Actual Safari browser
+
+The [successful native Safari run](https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-/actions/runs/41702251423) used **Safari 26.6.2** on a GitHub-hosted Mac through Apple's native Safari driver. **All 13 checks passed**:
+
+- Engineer login, console rendering and search; customer login and navigation.
+- Recording/Web Audio API availability, plus synthetic audio through the actual `UI.listen` recording path: silence detection and conversion to mono **16 kHz WAV**.
+- Contextual complaint drafting, location correction, refresh restoration, read-back, later confirmation, repeat-confirmation protection, New conversation and viewport fit.
+
+The audio input for that automated check was a generated tone supplied as a synthetic microphone stream. It did not use a physical Mac microphone. The UI checks do not establish audible speech quality or live-provider recognition accuracy. Native Safari checks are available in `.github/workflows/safari.yml` and `scripts/check_safari_ui.py`; Selenium is an optional test dependency, not an application installation requirement.
+
+Initial test runs exposed stale-element/timing races in the automation around repainted controls. The test now waits for controls and reads the current proposal ID atomically; application behavior was not changed for those failures.
+
+### Physical microphone
+
+The project owner separately tested the local customer app with a physical microphone: “My data is slow at work” → “Report that” → “Cancel.” They confirmed that the agent heard the requests, prepared the draft and cancelled without submitting. This is a reported hardware check on the owner's PC, not a macOS/iPhone microphone benchmark.
+
+### Fresh Docker/Maveric integration
+
+A separate checkout of upstream Maveric commit `7573f030523669eaa3bb215fb3b29985c06824c8` was built and started with Docker Desktop's Linux containers on this Windows x86_64 PC. A separate Compose project and volume kept existing containers and models untouched.
+
+The first Windows checkout converted the Kafka entrypoint to CRLF, producing `exec /entrypoint.sh: no such file or directory`. Preserving Linux line endings fixed startup. The [Docker guide](MAVERIC_TWIN.md#setup-once) now clones Maveric with `--config core.autocrlf=false` before building.
+
+The new test model used **12,960 rows across 36 cells** and trained in **30 seconds**. Its tilt +2°, power −2 dB and power −8 dB what-if calls all returned coverage predictions. RAN Sentinel's own `MavericTwin.simulate` returned **Maveric RF twin (coverage) + simulator copy (load)**, confirming use of real Maveric coverage rather than fallback. The test containers were stopped afterwards; the user's `.env` was not changed.
+
+This Docker check does not verify Docker on macOS/Apple Silicon or every Linux host. The native Python installation checks below are separate from the external twin.
+
 ## Linux and macOS verification — 4 November 2026
 
 The [public GitHub Actions run](https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-/actions/runs/41698614152) checked commit `dca1fd3` on fresh Linux and macOS runners. Each job cloned the repository, used the README's `python3 -m venv .venv` and `.venv/bin/python` commands, installed `requirements.txt`, copied `.env.example`, checked dependencies, started a temporary local app, checked both portals, and ran the full application suite. External-service keys were empty.

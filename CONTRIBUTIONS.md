@@ -24,7 +24,7 @@ About 13,000 lines of Python, JavaScript and CSS, plus the documentation.
 | Voice conversation memory | Session-scoped dialogue, older context notes, issue and draft tracking, corrections, approval IDs, request retry protection and refresh restoration | `backend/app/voice_memory.py`, `frontend/connect/app.js` |
 | Live updates | In-place page patching and serial polling | `frontend/shared/ui.js` |
 | Security | Portal-bound sessions, login lockout, file upload checks | `backend/app/main.py` |
-| Tests | 207 pytest tests and four Playwright browser checks | `tests/`, `scripts/check_*.js` |
+| Tests | 207 pytest tests, four Playwright browser checks and a native Safari check | `tests/`, `scripts/check_*.js` |
 | Documentation | README, docs/ guides, user manual and technical documentation PDFs, sample field-evidence files (drawn illustrations) | `docs/`, `samples/` |
 
 ## Not built for this project (used under their licences)

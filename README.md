@@ -153,6 +153,8 @@ Start with **Section 1**. It runs both apps and the simulator without API keys. 
 
 [![Linux and macOS installation checks](https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-/actions/workflows/local-install.yml/badge.svg)](https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-/actions/workflows/local-install.yml)
 
+**Browser and audio checks:** [native Safari 26.6.2 passed all 13 checks](https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-/actions/runs/41702251423), including synthetic audio capture and WAV conversion. The project owner also confirmed a physical microphone draft-and-cancel test on their PC. See the [verification details](docs/LOCAL_INSTALL_VERIFICATION.md) for the exact coverage and limits.
+
 ### 1. Install and run the local demo
 
 Install [Git](https://git-scm.com/downloads/) and [64-bit Python](https://www.python.org/downloads/) first, then reopen your terminal. Python 3.14 is the closest match to the verified setup. Open PowerShell (Windows) or Terminal (macOS/Linux) in a folder where you want to keep the project, then run:
@@ -258,7 +260,7 @@ Docker runs **Maveric**, a separate service that predicts coverage changes befor
 
 3. After training succeeds, set `MAVERIC_URL=http://localhost:8080` in the project's `.env`, then restart RAN Sentinel. The status bar should show **Twin: Maveric RADP**. If the service is unavailable or untrained, the app shows why it is using the simulator twin.
 
-On macOS/Linux use `.venv/bin/python` for the training command. Docker/Maveric was not reinstalled during the latest clean Python installation check; its separate requirements and setup are in the linked guide.
+On macOS/Linux use `.venv/bin/python` for the training command. A separate fresh Docker/Maveric checkout, training run and application integration passed on Windows with Linux containers. Preserve Linux script line endings when cloning, as shown in the linked guide. Docker on macOS/Apple Silicon was not part of that Docker check.
 
 #### Check that your installation worked
 
