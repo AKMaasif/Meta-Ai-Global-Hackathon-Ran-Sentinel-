@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from . import agents, radio, support
 from .support import Support, SupportError
 from .care import CREDIT_AMOUNT, CREDIT_MIN_MINUTES, SETTINGS, SUBSCRIBER, SYMPTOMS, Care
+from .voice_memory import VoiceConversation
 from .config import ROOT, settings
 from .detection import DETECTOR_VERSION
 from .orchestrator import OPEN_STATES, Sentinel
@@ -708,9 +709,25 @@ async def care_concierge(body: Ask, _: dict = Depends(customer_user)):
 
 class VoiceTurn(BaseModel):
     text: str
+    action_id: str | None = None
+    request_id: str | None = None
     history: list[dict] = []
     page: str = ""
     speak: bool = True
+
+
+def _voice_memory(user: dict) -> VoiceConversation:
+    return user.setdefault("voice_memory", VoiceConversation())
+
+
+@app.get("/api/care/voice/memory")
+def voice_memory_get(user: dict = Depends(customer_user)):
+    return _voice_memory(user).restore(_care())
+
+
+@app.delete("/api/care/voice/memory")
+def voice_memory_clear(user: dict = Depends(customer_user)):
+    return _voice_memory(user).reset(_care())
 
 
 @app.get("/api/care/voice/status")
@@ -725,7 +742,10 @@ async def voice_turn(body: VoiceTurn, _: dict = Depends(customer_user)):
     if not body.text.strip():
         raise HTTPException(400, "I didn't catch that.")
     c = _care()
-    r = await run_in_threadpool(c.concierge, body.text, body.history, True, body.page)
+    try:
+        r = await run_in_threadpool(_voice_memory(_).turn, c, body.text, body.action_id, body.page, body.request_id)
+    except ValueError as e:
+        raise HTTPException(409, str(e))
     r["audio"], r["voice_by"] = None, "browser"
     if body.speak and speech.enabled:
         try:
@@ -742,7 +762,7 @@ class SpeakReq(BaseModel):
 
 @app.post("/api/care/voice/speak")
 async def voice_speak(body: SpeakReq, _: dict = Depends(customer_user)):
-    text = body.text.strip()[:600]
+    text = body.text.strip()[:1200]
     if not text or not speech.enabled:
         raise HTTPException(503, "Gemini voice is not set up; the browser voice is used instead.")
     try:
@@ -759,9 +779,22 @@ class Confirm(BaseModel):
 @app.post("/api/care/confirm")
 def care_confirm(body: Confirm, _: dict = Depends(customer_user)):
     try:
-        return _care().confirm(body.action_id)
+        c = _care()
+        memory = _voice_memory(_)
+        if memory.owns(c, body.action_id):
+            return memory.action(c, body.action_id)
+        return c.confirm(body.action_id)
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+@app.post("/api/care/voice/cancel")
+def voice_cancel(body: Confirm, _: dict = Depends(customer_user)):
+    try:
+        return _voice_memory(_).action(_care(), body.action_id, cancel=True)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
 
 
 @app.get("/api/care/map")

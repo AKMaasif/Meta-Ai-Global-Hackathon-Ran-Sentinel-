@@ -1,6 +1,6 @@
 # What was built for this project, and what was not
 
-AKMaasif built the original RAN Sentinel application from scratch as a solo project, completing the project build between **27 October and 2 November 2026**. No code from a pre-existing personal project or another contestant's repository was reused. Subsequent documentation, presentation and installation-verification updates are recorded in the Git history.
+AKMaasif built the original RAN Sentinel application from scratch as a solo project, completing the project build between **27 October and 2 November 2026**. No code from a pre-existing personal project or another contestant's repository was reused. Subsequent voice-workflow, documentation, presentation and installation-verification updates are recorded in the Git history.
 
 This originality statement applies to the application work listed below. It does not claim authorship of third-party libraries, bundled map assets, datasets or externally accessed models. Those components are credited separately under their respective licences and terms; Maveric runs as a separate service.
 
@@ -21,9 +21,10 @@ About 13,000 lines of Python, JavaScript and CSS, plus the documentation.
 | FCC Part 4 check | User-minute tracking and a Regulatory Compliance desk | `backend/app/regulatory.py` |
 | Operations console | OSS-style console: overview, alarm monitor, cell explorer, incidents, approvals, ledger, model card, customer support desk | `frontend/ops/` |
 | Customer app | Northstar Connect: home, network, account, bill, alerts, outage credits, Care Concierge, voice agent, help center and support tickets | `frontend/connect/`, `backend/app/care.py`, `support.py` |
+| Voice conversation memory | Session-scoped dialogue, older context notes, issue and draft tracking, corrections, approval IDs, request retry protection and refresh restoration | `backend/app/voice_memory.py`, `frontend/connect/app.js` |
 | Live updates | In-place page patching and serial polling | `frontend/shared/ui.js` |
 | Security | Portal-bound sessions, login lockout, file upload checks | `backend/app/main.py` |
-| Tests | 182 pytest tests and two Playwright browser checks | `tests/`, `scripts/check_*.js` |
+| Tests | 207 pytest tests and four Playwright browser checks | `tests/`, `scripts/check_*.js` |
 | Documentation | README, docs/ guides, user manual and technical documentation PDFs, sample field-evidence files (drawn illustrations) | `docs/`, `samples/` |
 
 ## Not built for this project (used under their licences)

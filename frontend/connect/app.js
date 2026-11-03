@@ -82,7 +82,7 @@ function route() {
   const [p, arg] = (location.hash.replace(/^#\/?/, "") || "home").split("/");
   const pages = { home, network: () => network(arg), account, bill, help: () => (arg ? article(arg) : help()), assistant, support: () => (arg === "new" ? supportNew() : arg ? supportTicket(arg) : supportList()), notifications, report, shop };
   voice.show(p !== "login");
-  if (p === "login") { poll.stop(); voice.end(); return login(); }
+  if (p === "login") { poll.stop(); voice.clearLocal(); return login(); }
   const fn = pages[p] || home;
   if (["home", "network", "notifications", "bill"].includes(p) || (p === "support" && arg && arg !== "new") || !pages[p]) return poll.start(fn, 5000, fatal);
   guard(fn);
@@ -315,13 +315,17 @@ async function report() {
       <form id="rf" class="grid" style="gap:14px">
         <div><span class="label">Where?</span><div class="chips" style="margin-top:6px">${n.places.map((p) => `<label><input type="radio" name="place" value="${p.id}" ${p.id === r.place ? "checked" : ""}><span>${esc(p.label)} · ${esc(p.area)}</span></label>`).join("")}</div></div>
         <div><span class="label">What's wrong?</span><div class="chips" style="margin-top:6px">${Object.entries(n.symptoms).map(([k, v]) => `<label><input type="radio" name="sym" value="${k}" ${k === r.symptom ? "checked" : ""}><span>${esc(v)}</span></label>`).join("")}</div></div>
-        <div class="field"><label for="det">Anything else? (optional)</label><textarea id="det" class="ta" maxlength="300" placeholder="For example: no signal indoors since noon"></textarea></div>
+        <div class="field"><label for="det">Anything else? (optional)</label><textarea id="det" class="ta" maxlength="300" placeholder="For example: no signal indoors since noon">${esc(r.details || "")}</textarea></div>
         <button class="b block">Send report</button></form></section>
     <div id="rres"></div></div>`, { title: "Report a problem", back: "#/network" });
   badge(0);
   document.getElementById("rf").onsubmit = async (e) => {
     e.preventDefault();
     const f = new FormData(e.target);
+    if (ui.report.actionId) {
+      voice.end();
+      await api("/api/care/voice/cancel", { body: { action_id: ui.report.actionId } });
+    }
     ui.report = { place: f.get("place"), symptom: f.get("sym") };
     const res = await api("/api/care/report", { body: { place: ui.report.place, symptom: ui.report.symptom, details: document.getElementById("det").value } });
     document.getElementById("rres").innerHTML = `<section class="card" style="border-color:var(--brand)"><div class="row"><h2>${res.outcome === "linked" ? "Added to the repair" : "Let's check your phone"}</h2><span class="pill plain info mono">${esc(res.id)}</span></div>
@@ -703,7 +707,7 @@ async function shop() {
 
 const voice = (() => {
   const S = { open: false, on: false, state: "idle", heard: "", answer: "", actions: [], history: [], flow: [], misses: 0, mic: null, audio: null, by: "" };
-  const END = /^(stop|bye|goodbye|that'?s all|that is all|thanks?,? (that'?s all|bye)|nothing else|no thanks?)\b/i;
+  const END = /^(stop|bye|goodbye|that'?s all|that is all|thanks?,? (that'?s all|bye)|nothing else)[.!]?$/i;
   const STATUS = { idle: "Tap the mic and talk, or type below", listening: "Listening…", hearing: "Understanding…", thinking: "Working on it…", speaking: "Speaking… tap the orb to interrupt" };
   const CHIPS = ["Test my connection", "Any problems near me?", "What's my bill?", "Report a problem", "Turn on Wi-Fi Calling"];
   const GUESS = [[/connect|signal|data|speed|internet|slow|test/i, "Testing your connection"], [/report|complain/i, "Preparing your report"],
@@ -722,7 +726,7 @@ const voice = (() => {
     root.innerHTML = `<button class="va-launch" id="valaunch" aria-label="Open the voice assistant"><span class="orb sm"><i></i></span><b>Ask</b></button>
       <div class="va-sheet" id="vasheet" hidden role="dialog" aria-label="Northstar assistant">
         <div class="va-top"><button class="va-ic" id="vaclose" aria-label="Close the assistant">✕</button><span class="va-model" id="vamodel"></span>
-          <button class="va-ic va-mic" id="vamic" aria-label="Talk">${MIC24}</button></div>
+          <button class="va-ic" id="vanew" aria-label="Clear conversation and start over" title="New conversation">↺</button><button class="va-ic va-mic" id="vamic" aria-label="Talk">${MIC24}</button></div>
         <button class="va-orbbtn" id="vaorb" aria-label="Talk"><span class="orb" id="vaorbi"><i></i></span></button>
         <div class="va-say" id="vasay" aria-live="polite"></div>
         <div class="va-status" id="vastatus" aria-live="polite"></div>
@@ -737,9 +741,15 @@ const voice = (() => {
     $("valaunch").onclick = () => { S.open = true; paint(); start(); };
     $("vaclose").onclick = () => { end(); S.open = false; paint(); };
     $("vamic").onclick = $("vaorb").onclick = tap;
+    $("vanew").onclick = async () => {
+      end();
+      try { S.restoring = api("/api/care/voice/memory", { method: "DELETE" }); await S.restoring; S.history = []; S.actions = []; S.heard = ""; S.answer = "Conversation cleared. How can I help?"; }
+      catch (e) { S.answer = e.message; }
+      paint();
+    };
     $("vaask").onsubmit = (e) => { e.preventDefault(); const q = $("vaq").value.trim(); $("vaq").value = ""; if (q) typed(q); };
     $("vachips").querySelectorAll("button").forEach((b) => (b.onclick = () => typed(b.textContent)));
-    S.status = () => api("/api/care/voice/status").then((v) => { $("vamodel").textContent = `${v.think === "rules" ? "Offline rules" : "Meta Muse Spark"} · ${v.speak === "browser" ? "browser voice" : "Gemini voice"}`; }).catch(() => {});
+    S.status = () => api("/api/care/voice/status").then((v) => { S.browserVoice = v.speak === "browser"; $("vamodel").textContent = `${v.think === "rules" ? "Offline rules" : "Meta Muse Spark"} · ${v.speak === "browser" ? "browser voice" : "Gemini voice"}`; }).catch(() => {});
   }
   function paint() {
     if (!root) return;
@@ -757,12 +767,24 @@ const voice = (() => {
     $("vastatus").textContent = STATUS[S.state];
     $("vaflow").innerHTML = S.flow.map((f) => `<li class="${f.state}"><span class="dot" aria-hidden="true"></span>${esc(f.label)}</li>`).join("");
     $("vaflow").hidden = !S.flow.length;
-    $("vaacts").innerHTML = S.actions.map((a) => `<div class="act"><b>${esc(a.label)}</b>${a.done ? `<span class="pill ok">${esc(a.done)}</span>` :
-      `<div class="btns"><span class="small muted">Say “yes” or</span><button class="b sm" data-vconfirm="${esc(a.id)}">Confirm</button></div>`}</div>`).join("");
+    $("vaacts").innerHTML = S.actions.map((a) => `<div class="act"><b>${esc(a.label)}</b>${a.type === "report" ? `<p>${esc(a.details || "No additional details")}</p>` : ""}${a.done ? `<span class="pill ok">${esc(a.done)}</span>` :
+      `<div class="btns"><span class="small muted">Say “yes” or</span><button class="b sm" data-vconfirm="${esc(a.id)}">Confirm</button><button class="b sm" data-vcancel="${esc(a.id)}">Cancel</button></div>`}</div>`).join("");
     $("vaacts").querySelectorAll("[data-vconfirm]").forEach((b) => (b.onclick = async () => {
       const a = S.actions.find((x) => x.id === b.dataset.vconfirm);
-      try { const r = await api("/api/care/confirm", { body: { action_id: a.id } }); a.done = "Done"; S.answer = r.done; route(); }
+      end();
+      b.disabled = true;
+      try { const r = await api("/api/care/confirm", { body: { action_id: a.id } }); a.done = "Done"; S.answer = r.done; if (a.type === "report") { ui.report = { place: "home", symptom: "no_service" }; location.hash = "#/network"; } else route(); }
       catch (e) { a.done = "Expired"; S.answer = e.message; }
+      paint();
+    }));
+    $("vaacts").querySelectorAll("[data-vcancel]").forEach((b) => (b.onclick = async () => {
+      end();
+      b.disabled = true;
+      try {
+        await api("/api/care/voice/cancel", { body: { action_id: b.dataset.vcancel } });
+        S.actions = S.actions.filter((a) => a.id !== b.dataset.vcancel);
+        S.answer = "Cancelled. I haven't made that change.";
+      } catch (e) { S.answer = e.message; }
       paint();
     }));
   }
@@ -770,12 +792,28 @@ const voice = (() => {
   function step(label) { S.flow.forEach((f) => f.state === "now" && (f.state = "done")); if (label) S.flow.push({ label, state: "now" }); paint(); }
 
   async function start() {
+    const tok = S.tok;
+    S.restoring = api("/api/care/voice/memory").then((m) => {
+      if (tok !== S.tok) return;
+      S.history = m.messages || []; S.actions = m.actions || [];
+      S.heard = S.history.filter((h) => h.who === "me").at(-1)?.text || "";
+      S.answer = S.history.filter((h) => h.who === "bot").at(-1)?.text || "";
+      const draft = S.actions.find((a) => a.type === "report" && !a.done);
+      if (page() === "report" && draft) {
+        ui.report = { place: draft.place, symptom: draft.symptom, details: draft.details, actionId: draft.id };
+        route();
+      } else if (page() === "report" && ui.report.actionId && !draft) {
+        ui.report = { place: "home", symptom: "no_service" }; route();
+      }
+      paint();
+    }).catch((e) => { if (tok === S.tok) { S.answer = e.message; paint(); } });
     if (!S.model) { S.model = true; S.status().catch(() => (S.model = false)); }
     if (!S.name) api("/api/care/home").then((h) => { S.name = h.account.first_name; paint(); }).catch(() => {});
     paint();
   }
   async function tap() {
-    if (S.state === "speaking") { S.tok = (S.tok || 0) + 1; quiet(); return hear(); }
+    if (S.restoring) await S.restoring;
+    if (S.state === "speaking") { S.tok = (S.tok || 0) + 1; quiet(); S.on = true; return hear(); }
     if (S.state === "listening") { S.mic && S.mic.stop(); return; }
     if (S.on) return end();
     S.on = true; S.misses = 0; S.heard = ""; S.answer = ""; S.actions = []; S.flow = [];
@@ -790,6 +828,9 @@ const voice = (() => {
   }
   function quiet() {
     S.speech = (S.speech || 0) + 1;
+    if (S.ttsRequest) { S.ttsRequest.abort(); S.ttsRequest = null; }
+    if (S.finishPlayback) S.finishPlayback();
+    if (S.finishBrowser) S.finishBrowser();
     if (S.audio) { S.audio.pause(); S.audio = null; }
     if (window.speechSynthesis) speechSynthesis.cancel();
   }
@@ -801,16 +842,19 @@ const voice = (() => {
     set("listening");
     let wav;
     try {
-      S.mic = await UI.listen({ onLevel: (v) => root.querySelector("#vaorbi").style.setProperty("--lvl", v.toFixed(2)) });
-      wav = await S.mic.result;
-    } catch (e) { S.answer = e.message || "Microphone not available."; S.flow = []; S.on = false; return set("idle"); }
-    S.mic = null;
+      const mic = await UI.listen({ onLevel: (v) => root.querySelector("#vaorbi").style.setProperty("--lvl", v.toFixed(2)) });
+      if (!S.on || tok !== S.tok) { mic.cancel(); return; }
+      S.mic = mic;
+      wav = await mic.result;
+    } catch (e) { if (tok !== S.tok) return; S.answer = e.message || "Microphone not available."; S.flow = []; S.on = false; return set("idle"); }
     if (!S.on || tok !== S.tok) return;
+    S.mic = null;
     if (!wav) { S.flow = []; return ++S.misses >= 2 ? end() : (await speak("I'm listening. What can I do for you?"), again()); }
     S.flow = [{ label: "Heard you", state: "done" }]; step("Understanding your words"); set("hearing");
     let text = "";
     try { text = (await UI.upload("/api/public/voice", wav, "audio/wav")).text || ""; }
-    catch (e) { S.answer = e.message; return end(); }
+    catch (e) { if (tok !== S.tok) return; S.answer = e.message; return end(); }
+    if (!S.on || tok !== S.tok) return;
     if (!text.trim()) { S.flow = []; return ++S.misses >= 2 ? end() : (await speak("Sorry, I didn't catch that. Could you say it again?"), again()); }
     S.misses = 0;
     if (END.test(text.trim())) { S.heard = text; S.answer = "Okay. Tap the mic whenever you need me."; step(""); await speak(S.answer); return end(); }
@@ -818,18 +862,25 @@ const voice = (() => {
     again();
   }
   async function typed(q) {
+    set("thinking");
+    if (S.restoring) await S.restoring;
     S.tok = (S.tok || 0) + 1;
     if (S.state === "listening" && S.mic) { S.mic.cancel(); S.mic = null; }
     quiet();
+    const tok = S.tok;
     S.flow = []; await ask(q);
+    if (tok !== S.tok) return;
     if (S.on) hear(); else set("idle");
   }
   async function ask(text) {
+    const tok = S.tok;
+    const actionId = S.actions.filter((a) => !a.done).at(-1)?.id || null;
     S.heard = text; S.answer = ""; S.actions = [];
     step((GUESS.find(([re]) => re.test(text)) || [, "Finding the answer"])[1]); set("thinking");
     try {
-      const r = await api("/api/care/voice/turn", { body: { text, history: S.history.slice(-8), page: page(), speak: false } });
-      S.history.push({ who: "me", text }, { who: "bot", text: r.answer });
+      const r = await api("/api/care/voice/turn", { body: { text, action_id: actionId, request_id: crypto.randomUUID(), page: page(), speak: false } });
+      if (tok !== S.tok) return;
+      S.history = r.memory?.messages || [...S.history, { who: "me", text }, { who: "bot", text: r.answer }];
       chat.push({ who: "me", text }, { who: "bot", text: r.answer, actions: r.actions, steps: r.steps, by: r.by });
       S.flow.pop();
       for (const st of r.steps || []) S.flow.push({ label: st.label, state: "done" });
@@ -838,50 +889,61 @@ const voice = (() => {
       for (const u of r.ui || []) apply(u);
       step("Speaking");
       await speak(r.answer);
-      step("");
-    } catch (e) { S.answer = e.message; step(""); await speak("Sorry, something went wrong. Please try again."); }
+      if (tok === S.tok) step("");
+    } catch (e) { if (tok !== S.tok) return; S.answer = e.message; step(""); await speak("Sorry, something went wrong. Please try again."); }
   }
 
   function apply(u) {
     if (u.type === "navigate") {
       if (u.page === "network" && u.place) ui.place = u.place;
-      if (u.page === "report" && u.place) ui.report = { ...ui.report, place: u.place };
+      if (u.page === "report" && u.place) ui.report = { ...ui.report, place: u.place, symptom: u.symptom || ui.report.symptom, details: u.details || "", actionId: u.action_id };
       const hash = "#/" + u.page + (u.page === "network" && u.place ? "/" + u.place : "");
       if (location.hash !== hash) location.hash = hash; else route();
-    } else if (u.type === "refresh") route();
+    } else if (u.type === "refresh") {
+      if (u.done === "report") { ui.report = { place: "home", symptom: "no_service" }; location.hash = "#/network"; }
+      else route();
+    }
   }
 
-  function sentences(text) {
-    const parts = text.match(/[^.!?]+[.!?]+["')]*\s*|[^.!?]+$/g) || [text];
-    const out = [];
-    for (const p of parts.map((x) => x.trim()).filter(Boolean)) {
-      if (out.length > 1 && (out[out.length - 1] + " " + p).length < 160) out[out.length - 1] += " " + p;
-      else out.push(p);
-    }
-    return out;
-  }
   async function speak(text) {
     set("speaking");
     const id = (S.speech = (S.speech || 0) + 1);
-    if (S.browserVoice) { await new Promise((z) => browserSay(text, z)); return done(id); }
-    const parts = sentences(text);
-    const clips = parts.map((t) => fetch("/api/care/voice/speak", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ text: t }) })
-      .then((r) => (r.ok ? r.blob() : Promise.reject(r.status))).catch((e) => ({ failed: e })));
-    for (let k = 0; k < parts.length; k++) {
-      if (id !== S.speech || S.state !== "speaking") return;
-      const clip = await clips[k];
-      if (id !== S.speech || S.state !== "speaking") return;
-      if (clip.failed !== undefined) {
-        if (clip.failed === 503) S.browserVoice = true;
-        await new Promise((z) => browserSay(parts.slice(k).join(" "), z));
-        break;
-      }
-      await new Promise((z) => {
-        const url = URL.createObjectURL(clip);
-        S.audio = new Audio(url);
-        S.audio.onended = S.audio.onerror = () => { URL.revokeObjectURL(url); z(); };
-        S.audio.play().catch(() => z());
+    const current = () => id === S.speech && S.state === "speaking";
+    const fallback = () => new Promise((resolve) => browserSay(text, resolve));
+    if (S.browserVoice) { await fallback(); return done(id); }
+    const controller = new AbortController();
+    S.ttsRequest = controller;
+    const timeout = setTimeout(() => controller.abort(), 65000);
+    try {
+      // Generate the complete reply once: sentence clips create repeated endings.
+      const r = await fetch("/api/care/voice/speak", { method: "POST", headers: { "Content-Type": "application/json" },
+        credentials: "same-origin", signal: controller.signal, body: JSON.stringify({ text }) });
+      if (!r.ok) throw new Error("Speech temporarily unavailable");
+      const clip = await r.blob();
+      if (!current()) return;
+      await new Promise((resolve) => {
+        const url = URL.createObjectURL(clip), audio = new Audio(url);
+        let finished = false;
+        const finish = () => {
+          if (finished) return;
+          finished = true; clearTimeout(guard);
+          audio.onended = audio.onerror = null; audio.pause();
+          URL.revokeObjectURL(url);
+          if (S.audio === audio) S.audio = null;
+          if (S.finishPlayback === finish) S.finishPlayback = null;
+          resolve();
+        };
+        const guard = setTimeout(finish, 120000);
+        S.audio = audio; S.finishPlayback = finish;
+        audio.onended = finish;
+        audio.onerror = () => { S.answer = text + " (Audio could not play; you can read the reply.)"; finish(); paint(); };
+        audio.play().catch(() => { if (current()) { S.answer = text + " (Tap the microphone to enable audio, or read the reply.)"; paint(); } finish(); });
       });
+    } catch (e) {
+      if (current()) await fallback();
+    } finally {
+      clearTimeout(timeout);
+      if (S.ttsRequest === controller) S.ttsRequest = null;
     }
     done(id);
   }
@@ -889,8 +951,9 @@ const voice = (() => {
   function browserSay(text, fin) {
     if (!window.speechSynthesis) return fin();
     let over = false;
-    const once = () => { if (!over) { over = true; clearTimeout(guard); fin(); } };
-    const guard = setTimeout(once, 2500 + text.split(/\s+/).length * 450);
+    const once = () => { if (!over) { over = true; clearTimeout(guard); if (S.finishBrowser === once) S.finishBrowser = null; fin(); } };
+    S.finishBrowser = once;
+    const guard = setTimeout(() => { speechSynthesis.cancel(); once(); }, 4000 + text.split(/\s+/).length * 700);
     const u = new SpeechSynthesisUtterance(text);
     const vs = speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en"));
     u.voice = vs.find((v) => /natural|online|google us/i.test(v.name)) || vs[0] || null;
@@ -898,7 +961,10 @@ const voice = (() => {
     speechSynthesis.speak(u);
   }
 
-  return { show: (yes) => { mount(); root.hidden = !yes; }, end: () => root && (end(), (S.open = false), paint()) };
+  return { show: (yes) => { mount(); root.hidden = !yes; if (yes && !S.bootstrapped) { S.bootstrapped = true; start(); } },
+    end: () => root && (end(), (S.open = false), paint()),
+    clearLocal: () => { chat.length = 0; if (!root) return; end(); S.history = []; S.actions = []; S.answer = ""; S.heard = ""; S.open = false; S.bootstrapped = false; ui.report = { place: "home", symptom: "no_service" }; paint(); }
+  };
 })();
 
 route();

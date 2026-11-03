@@ -153,3 +153,78 @@ def test_plain_text_reply_is_used_without_json(sentinel):
     ])
     r = c.concierge("Report the problem, my data is slow at work", voice=True)
     assert r["by"] == "muse-spark-1.3" and r["answer"].startswith("I can report")
+
+
+def test_audio_edges_softened_without_cutting_words():
+    import struct
+    from app.providers import soften_pcm_edges
+    pcm = struct.pack("<1000h", *([12000] * 1000))
+    out = struct.unpack("<1000h", soften_pcm_edges(pcm, 24000))
+    assert len(out) == 1000 and out[0] == out[-1] == 0
+    assert out[120:880] == (12000,) * 760
+
+
+def test_tts_joins_audio_parts_and_respects_sample_rate():
+    pcm = b"\x01\x00" * 16000
+    def handler(req):
+        parts = [{"text": "metadata"}] + [{"inlineData": {"mimeType": "audio/L16;rate=16000", "data": base64.b64encode(pcm).decode()}}] * 2
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": parts}}]})
+    r = _speech(handler).speak("First sentence. Second sentence.")
+    with wave.open(io.BytesIO(r["wav"])) as w:
+        assert w.getframerate() == 16000 and w.getnframes() == 32000
+
+
+@pytest.mark.parametrize("mime,data", [("audio/mp3", b"1234"), ("audio/L16;rate=24000", b"123")])
+def test_tts_rejects_invalid_audio_instead_of_playing_noise(mime, data):
+    def handler(req):
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"inlineData": {"mimeType": mime, "data": base64.b64encode(data).decode()}}]}}]})
+    with pytest.raises(ProviderError):
+        _speech(handler).speak("hello")
+
+
+def test_tts_decodes_wav_container_instead_of_speaking_its_header():
+    from app.providers import pcm_to_wav
+    pcm = b"\x01\x00" * 22050
+    audio = pcm_to_wav(pcm, 22050)
+    def handler(req):
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"inlineData": {"mimeType": "audio/wav", "data": base64.b64encode(audio).decode()}}]}}]})
+    r = _speech(handler).speak("Hello.")
+    with wave.open(io.BytesIO(r["wav"])) as w:
+        assert w.getframerate() == 22050 and w.getnframes() == 22050
+        frames = w.readframes(w.getnframes())
+        assert b"RIFF" not in frames and b"WAVE" not in frames
+
+
+def test_complaint_draft_is_visible_but_unsent_until_confirmation(sentinel):
+    c = Care(sentinel)
+    r = c.concierge("Submit a complaint about slow data at work", voice=True)
+    a = r["actions"][0]
+    assert not c.reports and a["place"] == "work" and a["symptom"] == "slow_data"
+    assert r["ui"] == [{"type": "navigate", "page": "report", "place": "work", "symptom": "slow_data", "details": a["details"], "action_id": a["id"]}]
+    c.concierge("Cancel", voice=True)
+    assert not c.pending and not c.reports
+
+
+@pytest.mark.parametrize("question", ["Is it okay?", "Can you confirm that?", "What does yes mean?", "Yes, but do not send it"])
+def test_questions_and_negated_agreement_cannot_confirm(sentinel, question):
+    c = Care(sentinel)
+    c._turn = 1
+    a = c._propose({"type": "setting", "setting": "wifi_calling", "value": True})
+    c._turn = 2
+    assert c._voice_confirm(a["proposed"], question).get("error")
+    assert not c.prefs["wifi_calling"]
+
+
+def test_voice_http_turn_requires_the_visible_proposal_id(sentinel, monkeypatch):
+    import asyncio
+    from app import main
+    c = Care(sentinel)
+    monkeypatch.setattr(main, "_care", lambda: c)
+    user = {}
+    draft = asyncio.run(main.voice_turn(main.VoiceTurn(text="Turn on wifi calling", speak=False), user))
+    proposal = draft["actions"][0]
+    for action_id in (None, "abandoned-proposal"):
+        r = asyncio.run(main.voice_turn(main.VoiceTurn(text="Yes please", action_id=action_id, speak=False), user))
+        assert not c.prefs["wifi_calling"] and r["by"] == "confirmation guard"
+    r = asyncio.run(main.voice_turn(main.VoiceTurn(text="Yes please", action_id=proposal["id"], speak=False), user))
+    assert c.prefs["wifi_calling"] and not r["actions"]

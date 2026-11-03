@@ -24,7 +24,7 @@ RAN Sentinel watches a cluster of LTE cells in Seattle, WA (US bands B66, B2 and
 
 Everything runs on a **simulated** network. Nothing here connects to a real operator.
 
-> **Original work:** AKMaasif built the original RAN Sentinel application from scratch as a solo project, completing the project build between **27 October and 2 November 2026**. No code from a pre-existing personal project or another contestant's repository was reused. Subsequent documentation, presentation and installation-verification updates are recorded in the Git history. Third-party libraries, bundled map assets, datasets and externally accessed models are credited separately; Maveric runs as a separate service. [CONTRIBUTIONS.md](CONTRIBUTIONS.md) distinguishes the original application work from these third-party components.
+> **Original work:** AKMaasif built the original RAN Sentinel application from scratch as a solo project, completing the project build between **27 October and 2 November 2026**. No code from a pre-existing personal project or another contestant's repository was reused. Subsequent voice-workflow, documentation, presentation and installation-verification updates are recorded in the Git history. Third-party libraries, bundled map assets, datasets and externally accessed models are credited separately; Maveric runs as a separate service. [CONTRIBUTIONS.md](CONTRIBUTIONS.md) distinguishes the original application work from these third-party components.
 
 ## Highlights
 
@@ -34,7 +34,7 @@ Everything runs on a **simulated** network. Nothing here connects to a real oper
 - **Detection benchmarked** on the open TelecomTS dataset.
 - **Customer side:** plain-language network updates, a hands-free **voice agent** that operates the app ([details](docs/VOICE_AGENT.md)), and a help center with support requests.
 - **Demo controls** for live fault injection, plus red-team, twin outage, diagnostics outage and model outage switches that show every safety path. A guided walkthrough is in [DEMO.md](DEMO.md).
-- **182 automated tests.** The code is MIT-licensed ([LICENSE](LICENSE)).
+- **207 automated tests.** The code is MIT-licensed ([LICENSE](LICENSE)).
 
 ## Follow the evidence
 
@@ -135,7 +135,7 @@ RAN Sentinel is not a replacement for a vendor's SON or an operator's OSS. Large
 | [Setup and deployment](docs/SETUP_AND_DEPLOYMENT.md) | install, `.env` settings, health checks, troubleshooting, verification checklist |
 | [Verified investigation](docs/VERIFIED_INVESTIGATION.md) | the verifier, field-evidence pause, living plan, checkpoints and resume, sign-off, and how each maps to Meta's legal-agent workshop |
 | [Maveric RF twin](docs/MAVERIC_TWIN.md) | the what-if on Meta's Maveric RADP: setup with Docker, what it sends, measured accuracy |
-| [Customer voice agent](docs/VOICE_AGENT.md) | the voice pipeline (Muse Voice Transcribe, Muse Spark, Gemini TTS), its tools, safety and speed |
+| [Customer voice agent](docs/VOICE_AGENT.md) | model roles, capture and playback, conversation memory, customer approval and setup |
 | [Security and access control](docs/SECURITY_AND_ACCESS_CONTROL.md) | sign-in, roles, customer data limits, secrets, known gaps |
 | [Implementation and test report](docs/IMPLEMENTATION_AND_TEST_REPORT.md) | the live-refresh fix with before/after numbers, test results, change history |
 
@@ -248,9 +248,38 @@ A carrier self-service app with the usual pages: **Home**, **Network**, **Accoun
 | 5 Personal Advisor | Fixed rules | Suggestions for the customer's situation |
 | 6 Guardrails | Fixed rules | Blocks internal details, applies the credit rule, needs the customer's confirmation |
 
-**Voice agent.** The "Ask" orb opens a hands-free assistant. The customer speaks; Muse Voice Transcribe turns it into text, the
-Care Concierge on Muse Spark answers and operates the app (connection tests, opening pages, reports), and Gemini TTS speaks the
-answer sentence by sentence. Changes still need a spoken "yes" in a later turn or a tap on Confirm. See [docs/VOICE_AGENT.md](docs/VOICE_AGENT.md).
+### A voice assistant that remembers the conversation
+
+Open the **Ask** orb and speak naturally. You can ask about your connection, open a page, prepare a complaint or change a setting. The assistant keeps track of what you are talking about, so you do not have to repeat the location and problem every time.
+
+> **You:** My data is slow at work.
+>
+> **Assistant:** Checks the current connection at Work.
+>
+> **You:** Report that.
+>
+> **Assistant:** Prepares a complaint for you to review.
+>
+> **You:** Actually, change it to home.
+>
+> **Assistant:** Updates the draft and asks again.
+>
+> **You:** Read it back.
+>
+> **Assistant:** Reads the revised complaint.
+>
+> **You:** Yes, send it.
+
+| Stage | What happens |
+|---|---|
+| Listen | The browser records until you pause. **Meta Muse Voice Transcribe** turns the recording into text. |
+| Understand and act | **Muse Spark** uses customer-scoped tools. Common follow-ups such as “report that” and draft corrections can run directly from the remembered context. Current network and account questions still fetch fresh information. |
+| Remember | The server keeps recent dialogue, brief older notes, the current issue, one pending proposal and completed actions within your signed-in session. A page refresh restores the conversation and draft. |
+| Speak | **Gemini 3.8 Flash-Lite TTS**, with Flash TTS as fallback, reads the complete answer in the **Kore** voice as one continuous clip. Tap the orb to interrupt. |
+
+**You stay in control.** Complaints, credits and setting changes need a later explicit confirmation or a tap on Confirm. Revising a draft invalidates its previous approval ID, and retrying a request cannot submit it twice. The **New conversation** button clears voice context. Memory is held in server RAM and expires after 30 minutes of inactivity on the next access; logout and server restart also clear it.
+
+[Voice workflow and model roles](docs/VOICE_AGENT.md) · [Memory structure, session isolation and tests](docs/VOICE_CONVERSATION_MEMORY.md)
 
 **Help and support.** The Help tab is a help center: search across 17 articles (each with steps and a real screenshot of the app), browse by topic, and expand the frequently asked questions. If an article doesn't solve it, **Contact support** opens a form (name, email, topic, subject, description) that is checked in the browser and again on the server. Each request gets an ID such as `CS-100001`, is saved in SQLite and appears under **My requests** with its status and the full conversation. The customer can reply, which reopens a resolved request, or close it. A dot on the Help tab shows when support has answered. Customers only ever see their own requests.
 
@@ -374,12 +403,12 @@ After the full investigation, the correct root cause ranked first in 97.9% of si
 - **TelecomTS vs live data:** TelecomTS validates the detection method on real 5G testbed telemetry: per-UE KPIs every 100 ms. The live demo runs on simulated cell-level KPIs every 15 minutes, because no open dataset offers a cell cluster with config control.
 - **Twin:** with Maveric running, coverage comes from Maveric's RF twin trained on modelled (not drive-test) RSRP; load still comes from the simulator copy. Without it, the labelled fallback twin does both.
 - **Open M-Plane:** XML uses simplified, O-RAN-style element names and goes to an in-process simulated radio unit, not real hardware or the open-mplane C stack.
-- **Meta models:** every model passed `check_meta.py` on a real key (2026-10-28). Voice was checked with a test tone only, so transcription of real speech is not yet measured; try `--audio` with a recorded note.
+- **Meta models:** every model passed `check_meta.py` on a real key (2026-10-28). A later voice check generated a Kore reply and transcribed it through Meta; a real-microphone accuracy benchmark is still pending. Try `--audio` with a recorded note.
 - **Maps:** the street basemap needs internet; state outlines are offline. Towers and coverage are modelled, not surveyed.
 - **Agent audit:** `scripts/audit_agents.py` runs every agent live; its logic is tested with a scripted stand-in, and the live result depends on your key.
 - **Support labels:** hypothesis support levels describe evidence strength, not calibrated probabilities.
 - **Verified investigation:** measured offline only so far; run `eval_investigation.py --live` for the Muse Spark agents. Resume covers model API failures; restarting the server resets the demo.
-- **Voice agent:** spoken replies use Gemini TTS (Google), because Meta has no text-to-speech model yet; without a Google key the browser voice is used. Real-speech accuracy and latency are not yet measured.
+- **Voice agent:** spoken replies use Gemini TTS (Google), because Meta has no text-to-speech model yet; without a Google key the browser voice is used. Live model follow-ups, speech generation and a transcription round trip were checked; recognition accuracy and end-to-end latency on real customer devices have not been benchmarked.
 - **Reasoning effort:** the Meta API accepts every level (minimal to max) on Muse Spark 1.3 (`check_effort.py`, 2026-10-31). On a simple RCA question, minimal was right in 1.8 s with 134 tokens, against 3.2 s and 453 tokens with no setting. `AGENT_EFFORT` stays optional.
 
 ## Folder structure
@@ -394,7 +423,7 @@ backend/app/               FastAPI app: main.py (routes), orchestrator.py, agent
 frontend/ops/              operations console (/ops/)
 frontend/connect/          Northstar Connect customer app (/connect/); help/ holds the article screenshots
 frontend/shared/           shared UI helpers (in-place page updates, polling, API calls)
-tests/                     pytest suite (python -m pytest -q)
+tests/                     pytest suite (python -m pytest tests -q)
 scripts/                   live model checks, benchmarks and the browser checks (check_*.js)
 samples/                   sample field-evidence files for the demo
 docs/                      the user manual PDF, technical documentation PDF and the Markdown guides
@@ -416,10 +445,10 @@ Open M-Plane and Maveric are referenced, not bundled. No Meta or vendor endorsem
 ## Tests
 
 ```powershell
-python -m pytest -q
+python -m pytest tests -q
 ```
 
-182 tests cover the safety rules, M-Plane rollback, detection (no false alerts on a normal day; every fault detected), all five fault scenarios end to end, and the Muse Spark code path. The Muse Spark tests use a scripted stand-in for the API, covering tool calls, the repair loop, the evidence loop, the customer-text filter, model fallback and full outage. Further tests cover:
+207 tests cover the safety rules, M-Plane rollback, detection (no false alerts on a normal day; every fault detected), all five fault scenarios end to end, and the Muse Spark code path. The Muse Spark tests use a scripted stand-in for the API, covering tool calls, the repair loop, the evidence loop, the customer-text filter, model fallback and full outage. Further tests cover:
 - the FCC check, the ZIP-aware assistant, the reviewer and reporter agents, and the TelecomTS pipeline;
 - the SAM and voice request formats, against a mock HTTP server;
 - photo evidence and the voice-intent hints;
@@ -431,9 +460,11 @@ python -m pytest -q
 - the live agent audit script, run against a scripted stand-in;
 - the verifier (playbook coverage, fact lookup, made-up numbers and unsupported claims refused, escalation after 3 refusals), the field-evidence pause and resume, root-cause sign-off and dispute;
 - the living plan, one tool per turn, and resuming after an API failure at the investigate and plan steps, by button and automatically;
-- the voice agent (later-turn confirmation, instant commands, Gemini request format) and per-agent reasoning effort;
+- the voice agent: WAV/PCM decoding, continuous playback, conversation references, draft revisions, session isolation, expiry, request retries and confirmation; plus per-agent reasoning effort;
 - help and support (`tests/test_support.py`, 42 tests): form validation field by field, ticket IDs, saving across restarts, customers seeing only their own requests, every route refusing a signed-out user or the wrong portal, the full reply and status flow, filters and search, the 20-open-request limit, and help search and articles.
 
 The help and support screens are checked in a real browser by `node scripts\check_support_ui.js` (53 checks at phone, tablet and desktop sizes: search, empty states, form errors, sending a request, replies, the unread dot, closing, the ops desk filters, reply and status change, keyboard focus and no horizontal scrolling). It needs the app running.
 
 The live refresh is checked in a real browser by `node scripts\check_live_refresh.js` (12 checks: no screen rebuilds, clicks and taps that span a refresh, typed text, scroll and map kept, one request at a time on a slow backend, and the lost-connection state). It needs Node.js and Playwright and the app running; see [Setup](docs/SETUP_AND_DEPLOYMENT.md#7-tests).
+
+The voice workflow and memory have separate browser checks: `node scripts/check_voice_ui.js` and `node scripts/check_voice_memory_ui.js`. Run these against an isolated offline demo; they create fictional reports and change demo settings. The [memory guide](docs/VOICE_CONVERSATION_MEMORY.md#verification) records the tested scenarios and results.

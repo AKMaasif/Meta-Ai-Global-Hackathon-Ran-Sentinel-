@@ -43,7 +43,8 @@ async function customer(b, vp) {
   check(`${label}: Help center has no horizontal scroll`, (await overflow(p)) <= 1, `${await overflow(p)} px`);
   const faq = p.locator("details.faq").first(); await faq.locator("summary").click();
   check(`${label}: FAQ expands`, await faq.evaluate((d) => d.open));
-  await p.locator(".cat").nth(1).click(); await p.waitForTimeout(700);
+  await p.locator(".cat").nth(1).click();
+  await p.waitForFunction(() => document.querySelectorAll(".cat.on").length === 1 && document.querySelectorAll("details.faq").length === 2, {}, { timeout: 8000 }).catch(() => {});
   check(`${label}: topic filter shows only that topic`, (await p.locator(".cat.on").count()) === 1 && (await p.locator("details.faq").count()) === 2);
   await p.fill("#hq", "credit"); await p.waitForTimeout(900);
   check(`${label}: search finds the outage credit article`, ((await p.locator("#hres details.faq b").first().textContent()) || "").includes("Outage credits"));
@@ -99,8 +100,11 @@ async function customer(b, vp) {
     await p.waitForTimeout(5500);
     check("customer: sees the care team's reply without reloading", (await p.locator(".thread .msg.agent").count()) === 1 && (await p.locator(".card .pill").first().textContent()).includes("Waiting for your reply"));
     const [, first] = made[0];
+    // Leave the ticket before posting: its live poll marks replies as read.
+    await first.p.goto(`${BASE}/connect/#/help`); await first.p.waitForSelector(".helphero");
     await o.request.post(`${BASE}/api/support/tickets/${first.id}/reply`, { data: { body: "Second reply from the browser check." } });
-    await first.p.goto(`${BASE}/connect/#/help`); await first.p.waitForTimeout(1500);
+    await first.p.reload();
+    await first.p.locator(`a.replynote[href="#/support/${first.id}"]`).waitFor({ timeout: 10000 });
     check("customer: Help tab and Help center show the new-reply marker", (await first.p.locator('.tabbar a[href="#/help"] .dot').count()) === 1 && (await first.p.locator(`a.replynote[href="#/support/${first.id}"]`).count()) === 1);
     await first.p.goto(`${BASE}/connect/#/support/${first.id}`); await first.p.waitForTimeout(1200);
     await first.p.goto(`${BASE}/connect/#/help`); await first.p.waitForTimeout(1500);
