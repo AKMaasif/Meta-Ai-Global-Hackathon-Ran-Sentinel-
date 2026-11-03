@@ -1,6 +1,8 @@
 # What was built for this project, and what was not
 
-Everything in this repository was written from scratch between **26 October and 4 November 2026** by AKMaasif (solo). This page separates that original work from the third-party parts the project uses, so it is clear what is new.
+AKMaasif built the original RAN Sentinel application from scratch as a solo project, completing the project build between **27 October and 2 November 2026**. No code from a pre-existing personal project or another contestant's repository was reused. Subsequent documentation, presentation and installation-verification updates are recorded in the Git history.
+
+This originality statement applies to the application work listed below. It does not claim authorship of third-party libraries, bundled map assets, datasets or externally accessed models. Those components are credited separately under their respective licences and terms; Maveric runs as a separate service.
 
 ## Built for this project (original work)
 
@@ -21,7 +23,7 @@ About 13,000 lines of Python, JavaScript and CSS, plus the documentation.
 | Customer app | Northstar Connect: home, network, account, bill, alerts, outage credits, Care Concierge, voice agent, help center and support tickets | `frontend/connect/`, `backend/app/care.py`, `support.py` |
 | Live updates | In-place page patching and serial polling | `frontend/shared/ui.js` |
 | Security | Portal-bound sessions, login lockout, file upload checks | `backend/app/main.py` |
-| Tests | 179 pytest tests and two Playwright browser checks | `tests/`, `scripts/check_*.js` |
+| Tests | 182 pytest tests and two Playwright browser checks | `tests/`, `scripts/check_*.js` |
 | Documentation | README, docs/ guides, user manual and technical documentation PDFs, sample field-evidence files (drawn illustrations) | `docs/`, `samples/` |
 
 ## Not built for this project (used under their licences)

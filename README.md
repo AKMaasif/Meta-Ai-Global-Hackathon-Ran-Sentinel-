@@ -24,7 +24,7 @@ RAN Sentinel watches a cluster of LTE cells in Seattle, WA (US bands B66, B2 and
 
 Everything runs on a **simulated** network. Nothing here connects to a real operator.
 
-> **Original work:** all the code, both apps, the simulator, the tests and the documentation in this repository were built from scratch between 26 October and 4 November 2026. Meta's models are called over the API, and Maveric and the open-source libraries are used under their licences. [CONTRIBUTIONS.md](CONTRIBUTIONS.md) lists exactly what was built and what was not.
+> **Original work:** AKMaasif built the original RAN Sentinel application from scratch as a solo project, completing the project build between **27 October and 2 November 2026**. No code from a pre-existing personal project or another contestant's repository was reused. Subsequent documentation, presentation and installation-verification updates are recorded in the Git history. Third-party libraries, bundled map assets, datasets and externally accessed models are credited separately; Maveric runs as a separate service. [CONTRIBUTIONS.md](CONTRIBUTIONS.md) distinguishes the original application work from these third-party components.
 
 ## Highlights
 
@@ -34,7 +34,7 @@ Everything runs on a **simulated** network. Nothing here connects to a real oper
 - **Detection benchmarked** on the open TelecomTS dataset.
 - **Customer side:** plain-language network updates, a hands-free **voice agent** that operates the app ([details](docs/VOICE_AGENT.md)), and a help center with support requests.
 - **Demo controls** for live fault injection, plus red-team, twin outage, diagnostics outage and model outage switches that show every safety path. A guided walkthrough is in [DEMO.md](DEMO.md).
-- **179 automated tests.** The code is MIT-licensed ([LICENSE](LICENSE)).
+- **182 automated tests.** The code is MIT-licensed ([LICENSE](LICENSE)).
 
 ## Follow the evidence
 
@@ -419,7 +419,7 @@ Open M-Plane and Maveric are referenced, not bundled. No Meta or vendor endorsem
 python -m pytest -q
 ```
 
-179 tests cover the safety rules, M-Plane rollback, detection (no false alerts on a normal day; every fault detected), all five fault scenarios end to end, and the Muse Spark code path. The Muse Spark tests use a scripted stand-in for the API, covering tool calls, the repair loop, the evidence loop, the customer-text filter, model fallback and full outage. Further tests cover:
+182 tests cover the safety rules, M-Plane rollback, detection (no false alerts on a normal day; every fault detected), all five fault scenarios end to end, and the Muse Spark code path. The Muse Spark tests use a scripted stand-in for the API, covering tool calls, the repair loop, the evidence loop, the customer-text filter, model fallback and full outage. Further tests cover:
 - the FCC check, the ZIP-aware assistant, the reviewer and reporter agents, and the TelecomTS pipeline;
 - the SAM and voice request formats, against a mock HTTP server;
 - photo evidence and the voice-intent hints;
