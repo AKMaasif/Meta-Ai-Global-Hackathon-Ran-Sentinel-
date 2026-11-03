@@ -13,12 +13,14 @@ Code: `backend/app/maveric.py` (RADP client, training data, what-if), `backend/a
 Install and start Docker first (Docker Desktop with Linux containers on Windows). This is the optional RF twin; follow [README Section 1](../README.md#run-it-windows) to install RAN Sentinel itself. In a separate folder:
 
 ```powershell
-git clone https://github.com/lf-connectivity/maveric.git
+git clone --config core.autocrlf=false https://github.com/lf-connectivity/maveric.git
 cd maveric
 copy .env-prod .env
 docker build -t radp radp
 docker compose -f dc.yml -f dc-prod.yml up -d --build
 ```
+
+The clone option preserves Linux line endings in the container startup scripts, including on Windows. Without it, Kafka may fail with `exec /entrypoint.sh: no such file or directory`. For an existing Windows clone, preserve any edits, then re-clone with the command above before rebuilding.
 
 When the API answers on port 8080, go back to the RAN Sentinel folder:
 

@@ -10,6 +10,7 @@ import time
 
 import httpx
 from selenium import webdriver
+from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -56,18 +57,29 @@ def main():
                 browser.set_script_timeout(30)
                 browser.set_window_size(1440, 1000)
                 wait = WebDriverWait(browser, 30)
+                def click(by, value):
+                    def attempt(driver):
+                        try:
+                            element = driver.find_element(by, value)
+                            if not element.is_displayed() or not element.is_enabled():
+                                return False
+                            element.click()
+                            return True
+                        except WebDriverException:
+                            return False
+                    wait.until(attempt)
                 print('Browser:', browser.capabilities.get('browserName'), browser.capabilities.get('browserVersion'), flush=True)
                 browser.get(base + '/ops/')
                 wait.until(EC.visibility_of_element_located((By.ID, 'email'))).send_keys('ops@northstar.demo')
                 browser.find_element(By.ID, 'pw').send_keys('sentinel-demo')
-                browser.find_element(By.CSS_SELECTOR, '.form button').click()
+                click(By.CSS_SELECTOR, '.form button')
                 wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.shell')))
                 check('engineer sign-in and console render in Safari')
                 check('engineer search control is available', browser.find_element(By.ID, 'gq').is_displayed())
                 browser.get(base + '/connect/#/login')
                 wait.until(EC.visibility_of_element_located((By.ID, 'em'))).send_keys('customer@northstar.demo')
                 browser.find_element(By.ID, 'pw').send_keys('connect-demo')
-                browser.find_element(By.CSS_SELECTOR, '#f button').click()
+                click(By.CSS_SELECTOR, '#f button')
                 wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.app')))
                 check('customer sign-in and navigation render in Safari')
                 supported = browser.execute_script('return !!(window.MediaRecorder && navigator.mediaDevices?.getUserMedia && (window.AudioContext || window.webkitAudioContext));')
@@ -78,12 +90,12 @@ def main():
                     speechSynthesis.getVoices = () => [];
                     speechSynthesis.speak = u => setTimeout(() => u.onend && u.onend(), 0);
                 }''')
-                browser.find_element(By.ID, 'valaunch').click()
+                click(By.ID, 'valaunch')
                 def ask(text):
                     field = wait.until(EC.visibility_of_element_located((By.ID, 'vaq')))
                     field.clear()
                     field.send_keys(text)
-                    browser.find_element(By.CSS_SELECTOR, '#vaask button').click()
+                    click(By.CSS_SELECTOR, '#vaask button')
                     wait.until(lambda d: text in d.find_element(By.ID, 'vasay').text and
                                d.find_element(By.ID, 'vastatus').text.startswith('Tap the mic'))
                 def current_id():
@@ -97,7 +109,7 @@ def main():
                 check('correction replaces the approval and updates the location', revised != old and browser.find_element(By.CSS_SELECTOR, 'input[name=place]:checked').get_attribute('value') == 'home')
                 browser.refresh()
                 wait.until(lambda d: d.find_element(By.CSS_SELECTOR, 'input[name=place]:checked').get_attribute('value') == 'home')
-                browser.find_element(By.ID, 'valaunch').click()
+                click(By.ID, 'valaunch')
                 check('refresh restores the complaint and approval', current_id() == revised)
                 ask('Read it back')
                 check('draft read-back uses the revised location', 'home' in browser.find_element(By.ID, 'vasay').text.lower())
@@ -105,7 +117,7 @@ def main():
                 check('later confirmation submits the complaint', 'sent report' in browser.find_element(By.ID, 'vasay').text)
                 ask('Yes please')
                 check('another yes cannot submit the complaint twice', 'No change was made' in browser.find_element(By.ID, 'vasay').text)
-                browser.find_element(By.ID, 'vanew').click()
+                click(By.ID, 'vanew')
                 wait.until(lambda d: 'Conversation cleared' in d.find_element(By.ID, 'vasay').text)
                 ask('Report that')
                 check('New conversation clears old references', len(browser.find_elements(By.CSS_SELECTOR, '[data-vconfirm]')) == 0)
