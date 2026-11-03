@@ -1,6 +1,6 @@
 # Setup and deployment
 
-RAN Sentinel runs as one local Python process. The current clean-install verification used Windows with 64-bit Python 3.14. See [installation verification](LOCAL_INSTALL_VERIFICATION.md) for the tested scope; macOS/Linux instructions are provided in the README but were not exercised in that check. There is **no deployment configuration** in the repository: no Dockerfile, no cloud manifests, no reverse-proxy or TLS setup. Running it anywhere other than `127.0.0.1` has not been tested; see [Security](SECURITY_AND_ACCESS_CONTROL.md) before trying.
+RAN Sentinel runs as one local Python process. Fresh installation and startup checks passed on Windows, Ubuntu/WSL, GitHub-hosted Ubuntu, and GitHub-hosted Apple Silicon macOS with Python 3.14. The hosted Linux and macOS runs each passed all 207 application tests. See the [installation verification record](LOCAL_INSTALL_VERIFICATION.md) for environments, results and limits. There is **no deployment configuration** in the repository: no Dockerfile, no cloud manifests, no reverse-proxy or TLS setup. Running it anywhere other than `127.0.0.1` has not been tested; see [Security](SECURITY_AND_ACCESS_CONTROL.md) before trying.
 
 ## 1. Prerequisites
 

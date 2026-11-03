@@ -1,5 +1,21 @@
 # Local installation verification
 
+## Linux and macOS verification — 4 November 2026
+
+The [public GitHub Actions run](https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-/actions/runs/41698614152) checked commit `dca1fd3` on fresh Linux and macOS runners. Each job cloned the repository, used the README's `python3 -m venv .venv` and `.venv/bin/python` commands, installed `requirements.txt`, copied `.env.example`, checked dependencies, started a temporary local app, checked both portals, and ran the full application suite. External-service keys were empty.
+
+| Environment | Python | Installation and both-portal smoke check | Application tests |
+|---|---|---|---|
+| GitHub-hosted Ubuntu, Linux x86_64 | 3.14.9 | Passed | **207 passed**, 280.47 seconds |
+| GitHub-hosted macOS, Darwin 25.6.0, Apple Silicon arm64 | 3.14.10 | Passed | **207 passed**, 306.40 seconds |
+| Local Ubuntu 26.04.1 LTS under WSL2, x86_64 | 3.14.4 | Passed after installing `python3.14-venv` | Full suite checked on the separate hosted Ubuntu runner |
+
+The smoke checks covered bundled UI assets, both default logins, customer access restrictions, 36 cells, advancing telemetry, an injected fault, its investigation and department ticket. They verify that the local server starts and serves both apps; these were not Safari or physical microphone tests. Docker/Maveric and live provider access were not part of these offline platform checks.
+
+The workflow at `.github/workflows/local-install.yml` repeats these checks for relevant code changes and pull requests, and can be started manually from Actions. It uses read-only repository permissions and no API secrets. Its dependency installation uses a new virtual environment rather than the developer's installed packages.
+
+Ubuntu can omit Python's venv support. The local WSL test exposed that prerequisite, and succeeded after installing the matching package. The README now shows `python3-venv` and the version-specific alternative named by Python's error message.
+
 ## Fresh judge installation — 4 November 2026
 
 Verified the published application at commit `0567cf91ec74650df874999b591cb3e91dfaabbf` from a new public GitHub clone in a separate folder. Created a new virtual environment with `py -3 -m venv .venv`, installed `requirements.txt`, and copied `.env.example` to `.env`. No existing project environment, database or credentials were copied.
@@ -12,7 +28,7 @@ The isolated installation smoke check passed both portals, bundled assets, defau
 
 The README now separates **1. Local demo**, **2. Live AI and voice**, and **3. Docker RF twin**, with default accounts, manual commands, success checks and port-conflict instructions. Only Section 1 is required to run the basic demo.
 
-macOS/Linux and a fresh Docker/Maveric deployment were not exercised in this check. Live AI features require each judge's own provider access; the clean offline installation does not establish model availability or credits.
+This Windows check did not cover a fresh Docker/Maveric deployment; subsequent Linux/macOS results are recorded above. Live AI features require each judge's own provider access; the clean offline installation does not establish model availability or credits.
 
 ## Earlier verification — 3 November 2026
 

@@ -149,7 +149,9 @@ Start with **Section 1**. It runs both apps and the simulator without API keys. 
 | **2. Live AI and voice** | Meta agents, microphone transcription and Gemini Kore speech | Your own Meta/Google API access and credits; microphone permission |
 | **3. Docker RF twin** | Maveric coverage predictions before a proposed radio change | A running Docker installation and the separate Maveric service |
 
-**Verified platform:** a fresh Windows clone with Python 3.14. macOS/Linux commands are included, but were not exercised in this installation check. See the [installation verification record](docs/LOCAL_INSTALL_VERIFICATION.md).
+**Verified installations:** Windows (fresh local clone), Linux (Ubuntu/WSL and a GitHub-hosted Ubuntu runner), and macOS (an Apple Silicon GitHub runner), using Python 3.14. The hosted Linux and macOS checks each passed all **207 tests** plus installation and startup checks for both portals. See the [verification record](docs/LOCAL_INSTALL_VERIFICATION.md) and [public test run](https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-/actions/runs/41698614152).
+
+[![Linux and macOS installation checks](https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-/actions/workflows/local-install.yml/badge.svg)](https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-/actions/workflows/local-install.yml)
 
 ### 1. Install and run the local demo
 
@@ -177,6 +179,17 @@ If several Python versions are installed, use `py -3.14 -m venv .venv` to select
 
 #### macOS / Linux
 
+On **Ubuntu/Debian only**, minimal Python installations may need the venv package first:
+
+```bash
+sudo apt-get update
+sudo apt-get install python3-venv
+```
+
+If Python names a version-specific package in an `ensurepip` error, install that package instead (for example `sudo apt-get install python3.14-venv`). macOS does not use these `apt-get` commands.
+
+Then, from the cloned project folder, run:
+
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
@@ -184,7 +197,7 @@ python3 -m venv .venv
 .venv/bin/python run.py
 ```
 
-If your Linux distribution reports that `venv` is unavailable, install its Python venv package first. Node.js, Docker and the TelecomTS download are **not required** for the basic app.
+If creating the environment fails, install the missing prerequisite and repeat the whole command block. Node.js, Docker and the TelecomTS download are **not required** for the basic app.
 
 #### Open both portals
 
