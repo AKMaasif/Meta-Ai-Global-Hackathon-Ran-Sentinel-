@@ -1,0 +1,131 @@
+"""Safari UI check on macOS, with an isolated offline app and no hardware microphone."""
+import os
+from pathlib import Path
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+
+import httpx
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def main():
+    passed = []
+    def check(label, condition=True):
+        if not condition:
+            raise AssertionError(label)
+        passed.append(label)
+        print('PASS: ' + label, flush=True)
+
+    with tempfile.TemporaryDirectory(prefix='ran-sentinel-safari-') as folder:
+        work = Path(folder)
+        for name in ('backend', 'frontend'):
+            shutil.copytree(ROOT / name, work / name, ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+        shutil.copy2(ROOT / 'run.py', work / 'run.py')
+        with socket.socket() as probe:
+            probe.bind(('127.0.0.1', 0))
+            port = probe.getsockname()[1]
+        base = f'http://127.0.0.1:{port}'
+        env = dict(os.environ, MODEL_API_KEY='', GOOGLE_API_KEY='', FIREWORKS_API_KEY='', MAVERIC_URL='',
+                   OPS_EMAIL='ops@northstar.demo', OPS_PASSWORD='sentinel-demo',
+                   CUSTOMER_EMAIL='customer@northstar.demo', CUSTOMER_PASSWORD='connect-demo')
+        browser = None
+        with (work / 'server.log').open('w+') as log:
+            server = subprocess.Popen([sys.executable, str(work / 'run.py'), '--port', str(port)], cwd=work,
+                                      env=env, stdout=log, stderr=subprocess.STDOUT)
+            try:
+                until = time.monotonic() + 90
+                while time.monotonic() < until:
+                    try:
+                        if httpx.get(base + '/ops/', timeout=2).status_code == 200:
+                            break
+                    except httpx.HTTPError:
+                        pass
+                    time.sleep(.5)
+                else:
+                    raise RuntimeError('Local server did not start')
+                browser = webdriver.Safari()
+                browser.set_script_timeout(30)
+                browser.set_window_size(1440, 1000)
+                wait = WebDriverWait(browser, 30)
+                print('Browser:', browser.capabilities.get('browserName'), browser.capabilities.get('browserVersion'), flush=True)
+                browser.get(base + '/ops/')
+                wait.until(EC.visibility_of_element_located((By.ID, 'email'))).send_keys('ops@northstar.demo')
+                browser.find_element(By.ID, 'pw').send_keys('sentinel-demo')
+                browser.find_element(By.CSS_SELECTOR, '.form button').click()
+                wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.shell')))
+                check('engineer sign-in and console render in Safari')
+                check('engineer search control is available', browser.find_element(By.ID, 'gq').is_displayed())
+                browser.get(base + '/connect/#/login')
+                wait.until(EC.visibility_of_element_located((By.ID, 'em'))).send_keys('customer@northstar.demo')
+                browser.find_element(By.ID, 'pw').send_keys('connect-demo')
+                browser.find_element(By.CSS_SELECTOR, '#f button').click()
+                wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.app')))
+                check('customer sign-in and navigation render in Safari')
+                supported = browser.execute_script('return !!(window.MediaRecorder && navigator.mediaDevices?.getUserMedia && (window.AudioContext || window.webkitAudioContext));')
+                check('Safari exposes the recording and Web Audio APIs', supported)
+                # UI tests keep speech silent; audibility requires a separate listening check.
+                browser.execute_script('''if (window.speechSynthesis) {
+                    speechSynthesis.cancel = () => {};
+                    speechSynthesis.getVoices = () => [];
+                    speechSynthesis.speak = u => setTimeout(() => u.onend && u.onend(), 0);
+                }''')
+                browser.find_element(By.ID, 'valaunch').click()
+                def ask(text):
+                    field = wait.until(EC.visibility_of_element_located((By.ID, 'vaq')))
+                    field.clear()
+                    field.send_keys(text)
+                    browser.find_element(By.CSS_SELECTOR, '#vaask button').click()
+                    wait.until(lambda d: text in d.find_element(By.ID, 'vasay').text and
+                               d.find_element(By.ID, 'vastatus').text.startswith('Tap the mic'))
+                def current_id():
+                    return wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '[data-vconfirm]'))).get_attribute('data-vconfirm')
+                ask('My data is slow at work')
+                ask('Report that')
+                old = current_id()
+                check('contextual complaint draft opens at Work', browser.find_element(By.CSS_SELECTOR, 'input[name=place]:checked').get_attribute('value') == 'work')
+                ask('Actually, change the location to home')
+                revised = current_id()
+                check('correction replaces the approval and updates the location', revised != old and browser.find_element(By.CSS_SELECTOR, 'input[name=place]:checked').get_attribute('value') == 'home')
+                browser.refresh()
+                wait.until(lambda d: d.find_element(By.CSS_SELECTOR, 'input[name=place]:checked').get_attribute('value') == 'home')
+                browser.find_element(By.ID, 'valaunch').click()
+                check('refresh restores the complaint and approval', current_id() == revised)
+                ask('Read it back')
+                check('draft read-back uses the revised location', 'home' in browser.find_element(By.ID, 'vasay').text.lower())
+                ask('Yes, send it')
+                check('later confirmation submits the complaint', 'sent report' in browser.find_element(By.ID, 'vasay').text)
+                ask('Yes please')
+                check('another yes cannot submit the complaint twice', 'No change was made' in browser.find_element(By.ID, 'vasay').text)
+                browser.find_element(By.ID, 'vanew').click()
+                wait.until(lambda d: 'Conversation cleared' in d.find_element(By.ID, 'vasay').text)
+                ask('Report that')
+                check('New conversation clears old references', len(browser.find_elements(By.CSS_SELECTOR, '[data-vconfirm]')) == 0)
+                check('customer layout fits its viewport', browser.execute_script('return document.documentElement.scrollWidth <= innerWidth + 1'))
+                print(f'All {len(passed)} native Safari checks passed.', flush=True)
+                return 0
+            except Exception:
+                log.flush()
+                print((work / 'server.log').read_text()[-3000:], file=sys.stderr)
+                raise
+            finally:
+                if browser:
+                    browser.quit()
+                server.terminate()
+                try:
+                    server.wait(timeout=15)
+                except subprocess.TimeoutExpired:
+                    server.kill()
+                    server.wait()
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

@@ -1,0 +1,29 @@
+name: Native Safari browser check
+
+on:
+  push:
+    paths:
+      - '.github/workflows/safari.yml'
+      - 'scripts/check_safari_ui.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  safari:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14'
+      - name: Install application and optional browser-test dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install -r requirements.txt selenium
+      - name: Enable native Safari automation
+        run: sudo /usr/bin/safaridriver --enable
+      - name: Check the actual Safari browser
+        run: .venv/bin/python scripts/check_safari_ui.py
