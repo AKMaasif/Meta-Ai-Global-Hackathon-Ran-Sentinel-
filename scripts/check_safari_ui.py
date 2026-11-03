@@ -84,6 +84,41 @@ def main():
                 check('customer sign-in and navigation render in Safari')
                 supported = browser.execute_script('return !!(window.MediaRecorder && navigator.mediaDevices?.getUserMedia && (window.AudioContext || window.webkitAudioContext));')
                 check('Safari exposes the recording and Web Audio APIs', supported)
+                browser.execute_script("""
+                    window.__safariCapture = null;
+                    const button = document.createElement('button');
+                    button.id = 'safari-audio-fixture'; button.textContent = 'Check audio capture';
+                    button.style.cssText = 'position:fixed;top:5px;left:5px;z-index:999999';
+                    button.onclick = async () => {
+                        const original = navigator.mediaDevices.getUserMedia;
+                        let source;
+                        navigator.mediaDevices.getUserMedia = async () => {
+                            const Ctx = window.AudioContext || window.webkitAudioContext;
+                            source = new Ctx();
+                            const output = source.createMediaStreamDestination();
+                            const tone = source.createOscillator(), volume = source.createGain();
+                            volume.gain.value = 0.25;
+                            tone.connect(volume); volume.connect(output);
+                            await source.resume();
+                            tone.start(source.currentTime + 0.5); tone.stop(source.currentTime + 1.5);
+                            return output.stream;
+                        };
+                        try {
+                            const session = await UI.listen({silenceMs:400, maxSeconds:4, waitSeconds:4});
+                            const wav = await session.result;
+                            if (!wav) throw new Error('No synthetic voice detected');
+                            const bytes = await wav.arrayBuffer(), view = new DataView(bytes);
+                            window.__safariCapture = {header:String.fromCharCode(...new Uint8Array(bytes,0,4)),
+                                rate:view.getUint32(24,true), channels:view.getUint16(22,true), bytes:bytes.byteLength};
+                        } catch (error) { window.__safariCapture = {error:error.message}; }
+                        finally { navigator.mediaDevices.getUserMedia = original; if (source) await source.close(); button.remove(); }
+                    };
+                    document.body.appendChild(button);
+                """)
+                click(By.ID, 'safari-audio-fixture')
+                capture = wait.until(lambda d: d.execute_script('return window.__safariCapture'))
+                check('synthetic input passes Safari recording, silence detection and 16 kHz WAV conversion',
+                      capture.get('header') == 'RIFF' and capture.get('rate') == 16000 and capture.get('channels') == 1 and capture.get('bytes', 0) > 44)
                 # UI tests keep speech silent; audibility requires a separate listening check.
                 browser.execute_script('''if (window.speechSynthesis) {
                     speechSynthesis.cancel = () => {};
@@ -99,16 +134,16 @@ def main():
                     wait.until(lambda d: text in d.find_element(By.ID, 'vasay').text and
                                d.find_element(By.ID, 'vastatus').text.startswith('Tap the mic'))
                 def current_id():
-                    return wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '[data-vconfirm]'))).get_attribute('data-vconfirm')
+                    return wait.until(lambda d: d.execute_script("return document.querySelector('[data-vconfirm]')?.getAttribute('data-vconfirm');"))
                 ask('My data is slow at work')
                 ask('Report that')
                 old = current_id()
-                check('contextual complaint draft opens at Work', browser.find_element(By.CSS_SELECTOR, 'input[name=place]:checked').get_attribute('value') == 'work')
+                check('contextual complaint draft opens at Work', browser.execute_script("return document.querySelector('input[name=place]:checked')?.value") == 'work')
                 ask('Actually, change the location to home')
                 revised = current_id()
-                check('correction replaces the approval and updates the location', revised != old and browser.find_element(By.CSS_SELECTOR, 'input[name=place]:checked').get_attribute('value') == 'home')
+                check('correction replaces the approval and updates the location', revised != old and browser.execute_script("return document.querySelector('input[name=place]:checked')?.value") == 'home')
                 browser.refresh()
-                wait.until(lambda d: d.find_element(By.CSS_SELECTOR, 'input[name=place]:checked').get_attribute('value') == 'home')
+                wait.until(lambda d: d.execute_script("return document.querySelector('input[name=place]:checked')?.value") == 'home')
                 click(By.ID, 'valaunch')
                 check('refresh restores the complaint and approval', current_id() == revised)
                 ask('Read it back')
