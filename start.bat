@@ -1,21 +1,43 @@
 @echo off
-rem One-click start for Windows: creates the virtual environment on first run, then starts RAN Sentinel.
+setlocal
 cd /d "%~dp0"
-if not exist .venv (
-  echo Creating the Python environment, first run only...
-  py -m venv .venv || goto :nopython
-  call .venv\Scripts\activate.bat
-  pip install -r requirements.txt || goto :eof
-) else (
-  call .venv\Scripts\activate.bat
+if exist ".venv\Scripts\python.exe" goto :install
+if exist ".venv" (
+  echo The .venv folder exists but its Python is missing. Rename it and run this launcher again.
+  goto :failed
 )
+where py >nul 2>nul
+if errorlevel 1 goto :python
+py -3 -m venv .venv
+if errorlevel 1 goto :failed
+goto :install
+:python
+where python >nul 2>nul
+if errorlevel 1 (
+  echo Install Python 3.10 or newer from https://www.python.org/downloads/ and run this again.
+  goto :failed
+)
+python -m venv .venv
+if errorlevel 1 goto :failed
+:install
+".venv\Scripts\python.exe" -c "import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)"
+if errorlevel 1 (
+  echo This virtual environment needs Python 3.10 or newer. Rename .venv and run this again.
+  goto :failed
+)
+echo Checking project dependencies...
+".venv\Scripts\python.exe" -m pip install -r requirements.txt
+if errorlevel 1 goto :failed
 if not exist .env (
   copy .env.example .env >nul
-  echo Created .env from .env.example. Add your Meta key after MODEL_API_KEY= to use the Meta models.
+  if errorlevel 1 goto :failed
+  echo Created .env. Offline mode works without API keys. See README.md to enable Meta models.
 )
-start "" /min cmd /c "timeout /t 5 /nobreak >nul & start http://127.0.0.1:8000/ops/"
-py run.py
-goto :eof
-:nopython
-echo Python 3.10 or newer is needed: https://www.python.org/downloads/
+".venv\Scripts\python.exe" run.py %*
+if errorlevel 1 goto :failed
+exit /b 0
+:failed
+echo.
+echo Startup did not complete. Read the message above; no existing .env has been overwritten.
 pause
+exit /b 1

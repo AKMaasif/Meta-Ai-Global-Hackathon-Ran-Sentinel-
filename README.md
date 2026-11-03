@@ -146,30 +146,70 @@ git clone https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-.git
 cd Meta-Ai-Global-Hackathon-Ran-Sentinel-
 ```
 
-You need Python 3.10 or newer. The quickest way is to double-click **`start.bat`**. On the first run it creates the virtual environment, installs the requirements and copies `.env.example` to `.env`; then it starts the server and opens the console in your browser. Put your key in `.env` before the next start.
+You need **64-bit Python 3.10 or newer** and Git. The clean-install check documented in [local installation verification](docs/LOCAL_INSTALL_VERIFICATION.md) used Windows and Python 3.14. Other operating systems have instructions below but have not been exercised in that check.
 
-Or step by step:
+### Windows quick start (no API key required)
+
+Double-click **`start.bat`**, or run `.\start.bat` from PowerShell in the cloned folder. It creates `.venv` if needed, checks dependencies on every run, preserves an existing `.env`, and starts the server. Open the URLs printed in the terminal once startup completes. Keep that terminal open; press **Ctrl+C** to stop.
+
+Manual PowerShell setup, without activating an environment:
 
 ```powershell
-py -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-copy .env.example .env
-notepad .env          # paste your Meta key after MODEL_API_KEY= (and, for the voice agent, a Gemini key after GOOGLE_API_KEY=)
-py scripts\check_meta.py   # checks every Meta model the app uses (chat, tools, JSON, vision, SAM, voice)
-py scripts\check_field_files.py # checks Muse Spark reads field files (CSV, PDF, DOCX, TXT, photo)
-py scripts\audit_agents.py # runs every AI agent live through the app code and prints PASS / FALLBACK / FAIL
-py run.py
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
+.\.venv\Scripts\python.exe run.py
 ```
 
-Then open:
+If the `py` launcher is unavailable, use `python -m venv .venv` for the first command after installing Python. Calling the virtual environment's Python directly avoids PowerShell execution-policy problems and ensures the correct dependencies are used.
 
-- Operations console: http://127.0.0.1:8000/ops/ (sign in with `OPS_EMAIL` / `OPS_PASSWORD` from `.env`)
-- Northstar Connect customer app: http://127.0.0.1:8000/connect/ (`CUSTOMER_EMAIL` / `CUSTOMER_PASSWORD`)
+### macOS / Linux
 
-**Where the API key goes:** `.env` in the project folder, on the line `MODEL_API_KEY=...`. That file is listed in `.gitignore`, so it is never committed. Don't put the key in any `.py` or `.js` file.
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+[ -f .env ] || cp .env.example .env
+.venv/bin/python run.py
+```
 
-Without a key the app still runs, but the agents use an **offline rules engine**. The console then shows "Offline rules engine" everywhere, so those results can't be mistaken for Meta-powered ones.
+If your Linux distribution reports that `venv` is unavailable, install its Python venv package first. Node.js, Docker and the TelecomTS download are **not required** for the basic app.
+
+### Open both portals
+
+| Portal | Local address | Default email | Default password |
+|---|---|---|---|
+| Engineer console | http://127.0.0.1:8000/ops/ | `ops@northstar.demo` | `sentinel-demo` |
+| Customer app | http://127.0.0.1:8000/connect/ | `customer@northstar.demo` | `connect-demo` |
+
+These are local demo accounts, not your Meta login. Values set in `.env` override these defaults. Use the matching sign-in page for each account. The simulator and ML initialization can take several seconds on first start.
+
+If port 8000 is already occupied, use the existing server or choose another port:
+
+```powershell
+.\.venv\Scripts\python.exe run.py --port 8001
+```
+
+Then open `http://127.0.0.1:8001/ops/` and `/connect/`. Run only one instance per checkout: the demo incident database is reset at startup. Customer support records persist separately. This is a local demo, not a public deployment setup.
+
+### Enable model-powered features (optional)
+
+The app works without keys using a clearly labelled **offline rules engine**. To enable Meta agents, edit `.env`, set `MODEL_API_KEY` to your own Meta Model API key, then restart. Your account needs access and credits for the configured model IDs; account access and provider availability cannot be guaranteed by this repository.
+
+- `GOOGLE_API_KEY`: optional Gemini text-to-speech; without it, spoken replies use the browser voice when available. Meta voice transcription still requires Meta access and microphone permission.
+- `MAVERIC_URL`: optional separately deployed RF twin; leave empty for the labelled simulator twin. See [Maveric setup](docs/MAVERIC_TWIN.md).
+- Internet is needed for model calls and street-map tiles; bundled map outlines and offline investigation work without those services.
+
+Never commit `.env` or put a key in browser code. Shell environment variables override `.env`; clear old `MODEL_API_KEY`, `MAVERIC_URL` or other overrides if the selected mode is unexpected.
+
+The following checks make live requests and can consume API credits; they are **not required for first startup**:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/check_meta.py
+.\.venv\Scripts\python.exe scripts/check_field_files.py
+.\.venv\Scripts\python.exe scripts/audit_agents.py
+```
+
+For an offline check, run `.\.venv\Scripts\python.exe scripts/check_local_install.py`. It starts a temporary isolated demo on a free port and checks sign-in, static assets, both portals, and one incident; it does not use your API keys or existing database. Tests: `.\.venv\Scripts\python.exe -m pytest -q`.
 
 ## The operations console
 

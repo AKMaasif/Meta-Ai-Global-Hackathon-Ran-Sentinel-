@@ -1,18 +1,18 @@
 # Setup and deployment
 
-RAN Sentinel runs as one local Python process on Windows (it was run on the project PC (Windows) with Python 3.14, and the test suite also runs on Linux). There is **no deployment configuration** in the repository: no Dockerfile, no cloud manifests, no reverse-proxy or TLS setup. Running it anywhere other than `127.0.0.1` has not been tested; see [Security](SECURITY_AND_ACCESS_CONTROL.md) before trying.
+RAN Sentinel runs as one local Python process. The current clean-install verification used Windows with 64-bit Python 3.14. See [installation verification](LOCAL_INSTALL_VERIFICATION.md) for the tested scope; macOS/Linux instructions are provided in the README but were not exercised in that check. There is **no deployment configuration** in the repository: no Dockerfile, no cloud manifests, no reverse-proxy or TLS setup. Running it anywhere other than `127.0.0.1` has not been tested; see [Security](SECURITY_AND_ACCESS_CONTROL.md) before trying.
 
 ## 1. Prerequisites
 
 | Need | For | Notes |
 | --- | --- | --- |
-| Python 3.10 or newer (`py` launcher on Windows) | the app, tests, scripts | `start.bat` stops with a link if `py` is missing |
+| Python 3.10 or newer (`py` launcher on Windows) | the app, tests, scripts | `start.bat` uses `py`, or `python` when the launcher is missing |
 | A Meta Model API key | Meta-powered agents | optional: without it the app uses the offline rules engine and says so on screen |
 | Internet access | Meta models, street map tiles | optional: state outlines and Leaflet are bundled in `frontend/shared/vendor/` |
 | Node.js + Playwright | `scripts/check_live_refresh.js` only | optional |
 | `huggingface_hub` | `scripts/benchmark_telecomts.py` only | optional, downloads 1.1 GB once |
 
-Python packages (`requirements.txt`): fastapi, uvicorn[standard], numpy, scikit-learn, openai, httpx, python-dotenv, pytest.
+Python packages (`requirements.txt`): fastapi, uvicorn[standard], numpy, scikit-learn, openai, httpx, python-dotenv, pypdf, pytest.
 
 ## 2. Directory layout
 
@@ -51,32 +51,29 @@ ran-sentinel/
 
 ## 3. Install and run
 
-### One click (Windows)
+### Windows
 
-Double-click `start.bat`. On the first run it:
+Follow the [README installation instructions](../README.md#run-it-windows), which are the maintained quick start for Windows, macOS and Linux.
 
-1. creates `.venv` with `py -m venv .venv`;
-2. runs `pip install -r requirements.txt`;
-3. copies `.env.example` to `.env` if there is no `.env`;
-4. opens http://127.0.0.1:8000/ops/ after 5 seconds;
-5. runs `py run.py`.
+On Windows, double-click `start.bat` or run `.\start.bat` in PowerShell. The launcher creates `.venv` when absent, checks requirements on every run (including after an interrupted install), and creates `.env` only if missing. It then starts the server and prints both portal URLs. Open those URLs yourself and keep the terminal running. API keys are optional for the offline simulator.
 
-Later runs skip steps 1–3.
-
-### Manual
+Manual PowerShell commands after cloning and entering the repository:
 
 ```powershell
-git clone https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-.git
-cd Meta-Ai-Global-Hackathon-Ran-Sentinel-
-py -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-copy .env.example .env
-notepad .env
-py run.py
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
+.\.venv\Scripts\python.exe run.py
 ```
 
-Open the operations console at http://127.0.0.1:8000/ops/ and the customer app at http://127.0.0.1:8000/connect/.
+No activation command is needed. If `py` is unavailable, use `python -m venv .venv` first.
+
+| Portal | URL | Default email | Default password |
+|---|---|---|---|
+| Engineer | http://127.0.0.1:8000/ops/ | `ops@northstar.demo` | `sentinel-demo` |
+| Customer | http://127.0.0.1:8000/connect/ | `customer@northstar.demo` | `connect-demo` |
+
+Existing `.env` values or process environment variables can change these credentials. For an occupied port, stop the old server or use `.\.venv\Scripts\python.exe run.py --port 8001` and open the printed URLs. Use one server per checkout because startup resets simulator state.
 
 ## 4. Configuration (`.env`)
 
@@ -123,7 +120,8 @@ Nothing to set up. `Store` creates `data/sentinel.db` and its tables on first st
 ## 7. Tests
 
 ```powershell
-python -m pytest -q                      # 125 tests, about 3 minutes, no key or network needed
+.\.venv\Scripts\python.exe -m pytest -q  # offline; see current verification report for results
+.\.venv\Scripts\python.exe scripts/check_local_install.py  # isolated startup/login/fault smoke test
 ```
 
 Live refresh in a real browser. One-time setup, in the project folder:
@@ -153,7 +151,7 @@ Benchmarks: `py scripts\benchmark_simulator.py`. For TelecomTS, `pip install hug
 | --- | --- | --- |
 | "Offline rules engine" everywhere | `MODEL_API_KEY` is empty, or `.env` is not in the project root | put the key in `.env` in the project folder and restart |
 | An agent shows a fallback model or a template | the primary model failed or timed out | check the agent console on the incident page; run `check_meta.py` |
-| `[Errno 10048]` / address already in use | another server on port 8000 | close the other window, or stop the process using the port |
+| `[Errno 10048]` / address already in use | another server on port 8000 | stop your previous server, or run `python run.py --port 8001` |
 | "This is an engineer account…" or "This is a Northstar Connect customer account…" on sign-in | the right account on the wrong portal | sign in on the other app: engineers at `/ops/`, customers at `/connect/` |
 | "Email or password is incorrect" | the values differ from `.env` | check `OPS_*` / `CUSTOMER_*` in `.env`, then restart |
 | The map shows outlines only, with a note | no internet, or the tile host is blocked | expected offline; the outlines and the network still work |
@@ -166,10 +164,10 @@ Benchmarks: `py scripts\benchmark_simulator.py`. For TelecomTS, `pip install hug
 
 ## 9. Verification checklist
 
-- [ ] `python -m pytest -q` reports all tests passed (179 at the time of writing).
+- [ ] `python -m pytest -q` reports all tests passed (see the current installation verification report).
 - [ ] `node scripts/check_support_ui.js` reports all 53 support UI checks passed (app running).
-- [ ] `py scripts\check_meta.py` passes for every model you use.
-- [ ] `py scripts\audit_agents.py` ends with "All agents passed live."
+- [ ] Optional live AI: `py scripts\check_meta.py` passes for every model you use (requires provider access and may incur charges).
+- [ ] Optional live AI: `py scripts\audit_agents.py` ends with "All agents passed live."
 - [ ] The console shows "Meta Model API" and the clock advances.
 - [ ] Demo controls → create a Capacity surge → an incident opens within about two windows and reaches the approvals queue.
 - [ ] Approve it; the M-Plane commit is confirmed after monitoring, or rolled back.
