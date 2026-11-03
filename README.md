@@ -141,14 +141,26 @@ RAN Sentinel is not a replacement for a vendor's SON or an operator's OSS. Large
 
 ## Run it (Windows)
 
+Start with **Section 1**. It runs both apps and the simulator without API keys. **Section 2** adds live AI and speech; **Section 3** adds the optional Docker RF twin.
+
+| Section | What you can run | What you need |
+|---|---|---|
+| **1. Local demo** | Both portals, simulated network, offline investigations and typed voice-assistant conversations | Git, 64-bit Python 3.10+ and internet for the first package installation |
+| **2. Live AI and voice** | Meta agents, microphone transcription and Gemini Kore speech | Your own Meta/Google API access and credits; microphone permission |
+| **3. Docker RF twin** | Maveric coverage predictions before a proposed radio change | A running Docker installation and the separate Maveric service |
+
+**Verified platform:** a fresh Windows clone with Python 3.14. macOS/Linux commands are included, but were not exercised in this installation check. See the [installation verification record](docs/LOCAL_INSTALL_VERIFICATION.md).
+
+### 1. Install and run the local demo
+
+Install [Git](https://git-scm.com/downloads/) and [64-bit Python](https://www.python.org/downloads/) first, then reopen your terminal. Python 3.14 is the closest match to the verified setup. Open PowerShell (Windows) or Terminal (macOS/Linux) in a folder where you want to keep the project, then run:
+
 ```powershell
 git clone https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-.git
 cd Meta-Ai-Global-Hackathon-Ran-Sentinel-
 ```
 
-You need **64-bit Python 3.10 or newer** and Git. The clean-install check documented in [local installation verification](docs/LOCAL_INSTALL_VERIFICATION.md) used Windows and Python 3.14. Other operating systems have instructions below but have not been exercised in that check.
-
-### Windows quick start (no API key required)
+#### Windows quick start (no API key required)
 
 Double-click **`start.bat`**, or run `.\start.bat` from PowerShell in the cloned folder. It creates `.venv` if needed, checks dependencies on every run, preserves an existing `.env`, and starts the server. Open the URLs printed in the terminal once startup completes. Keep that terminal open; press **Ctrl+C** to stop.
 
@@ -161,9 +173,9 @@ if (!(Test-Path .env)) { Copy-Item .env.example .env }
 .\.venv\Scripts\python.exe run.py
 ```
 
-If the `py` launcher is unavailable, use `python -m venv .venv` for the first command after installing Python. Calling the virtual environment's Python directly avoids PowerShell execution-policy problems and ensures the correct dependencies are used.
+If several Python versions are installed, use `py -3.14 -m venv .venv` to select the verified Python series. If the `py` launcher is unavailable, use `python -m venv .venv` for the first command after installing Python. Calling the virtual environment's Python directly avoids PowerShell execution-policy problems and ensures the correct dependencies are used.
 
-### macOS / Linux
+#### macOS / Linux
 
 ```bash
 python3 -m venv .venv
@@ -174,7 +186,7 @@ python3 -m venv .venv
 
 If your Linux distribution reports that `venv` is unavailable, install its Python venv package first. Node.js, Docker and the TelecomTS download are **not required** for the basic app.
 
-### Open both portals
+#### Open both portals
 
 | Portal | Local address | Default email | Default password |
 |---|---|---|---|
@@ -189,15 +201,24 @@ If port 8000 is already occupied, use the existing server or choose another port
 .\.venv\Scripts\python.exe run.py --port 8001
 ```
 
-Then open `http://127.0.0.1:8001/ops/` and `/connect/`. Run only one instance per checkout: the demo incident database is reset at startup. Customer support records persist separately. This is a local demo, not a public deployment setup.
+Then open `http://127.0.0.1:8001/ops/` and `http://127.0.0.1:8001/connect/`. Run only one instance per checkout: the demo incident database is reset at startup. Customer support records persist separately. This is a local demo, not a public deployment setup.
 
-### Enable model-powered features (optional)
+### 2. Add live AI and voice (optional)
 
 The app works without keys using a clearly labelled **offline rules engine**. To enable Meta agents, edit `.env`, set `MODEL_API_KEY` to your own Meta Model API key, then restart. Your account needs access and credits for the configured model IDs; account access and provider availability cannot be guaranteed by this repository.
 
 - `GOOGLE_API_KEY`: optional Gemini text-to-speech; without it, spoken replies use the browser voice when available. Meta voice transcription still requires Meta access and microphone permission.
 - `MAVERIC_URL`: optional separately deployed RF twin; leave empty for the labelled simulator twin. See [Maveric setup](docs/MAVERIC_TWIN.md).
 - Internet is needed for model calls and street-map tiles; bundled map outlines and offline investigation work without those services.
+
+For example, edit these entries in `.env` with your own keys; keep them empty to stay in offline mode:
+
+```dotenv
+MODEL_API_KEY=
+GOOGLE_API_KEY=
+```
+
+Save the file, stop the server with **Ctrl+C**, and start it again. In Northstar Connect, open **Ask** and allow microphone access. Without a Meta key, use the text box instead of speech input; without a Google key, spoken output uses the browser voice when available.
 
 Never commit `.env` or put a key in browser code. Shell environment variables override `.env`; clear old `MODEL_API_KEY`, `MAVERIC_URL` or other overrides if the selected mode is unexpected.
 
@@ -209,7 +230,34 @@ The following checks make live requests and can consume API credits; they are **
 .\.venv\Scripts\python.exe scripts/audit_agents.py
 ```
 
-For an offline check, run `.\.venv\Scripts\python.exe scripts/check_local_install.py`. It starts a temporary isolated demo on a free port and checks sign-in, static assets, both portals, and one incident; it does not use your API keys or existing database. Tests: `.\.venv\Scripts\python.exe -m pytest -q`.
+For an offline check, run `.\.venv\Scripts\python.exe scripts/check_local_install.py`. It starts a temporary isolated demo on a free port and checks sign-in, static assets, both portals, and one incident; it does not use your API keys or existing database. Tests: `.\.venv\Scripts\python.exe -m pytest tests -q`.
+
+### 3. Add the Docker RF twin (optional)
+
+Docker runs **Maveric**, a separate service that predicts coverage changes before an engineer approves a radio adjustment. The basic app works without it using a labelled simulator twin.
+
+1. Install and start Docker (Docker Desktop with Linux containers on Windows). Follow the [Maveric Docker setup](docs/MAVERIC_TWIN.md#setup-once) in a separate folder. Keep RAN Sentinel running as the Python app installed in Section 1.
+2. Once Maveric answers on port **8080**, open another terminal in the **RAN Sentinel project folder** and train its demo model:
+
+   ```powershell
+   .\.venv\Scripts\python.exe scripts/maveric_setup.py --url http://localhost:8080
+   ```
+
+3. After training succeeds, set `MAVERIC_URL=http://localhost:8080` in the project's `.env`, then restart RAN Sentinel. The status bar should show **Twin: Maveric RADP**. If the service is unavailable or untrained, the app shows why it is using the simulator twin.
+
+On macOS/Linux use `.venv/bin/python` for the training command. Docker/Maveric was not reinstalled during the latest clean Python installation check; its separate requirements and setup are in the linked guide.
+
+#### Check that your installation worked
+
+After Section 1, wait for **Application startup complete**, open both portal links and sign in with the accounts above. The simulator clock should advance. In the engineer console, use **Demo controls** to create a hardware fault and watch it produce an incident and department ticket.
+
+For an automated check from the project folder, run:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/check_local_install.py
+```
+
+This creates an isolated temporary demo and checks both portals, static files, sign-in, live telemetry, a fault investigation and its ticket. It does not require your API keys or reset your existing demo. Node.js and Docker are not needed for this check.
 
 ## The operations console
 

@@ -1,5 +1,21 @@
 # Local installation verification
 
+## Fresh judge installation — 4 November 2026
+
+Verified the published application at commit `0567cf91ec74650df874999b591cb3e91dfaabbf` from a new public GitHub clone in a separate folder. Created a new virtual environment with `py -3 -m venv .venv`, installed `requirements.txt`, and copied `.env.example` to `.env`. No existing project environment, database or credentials were copied.
+
+Environment: Windows, 64-bit CPython 3.14.7. Requirements resolved successfully, including OpenAI SDK 3.43.0, FastAPI 0.162.0, NumPy 2.5.4 and scikit-learn 1.9.1. `pip check` found no broken requirements. The Windows batch launcher also passed its `--help` invocation after checking dependencies.
+
+The full published application suite passed: **207 tests in 289.10 seconds**, using `python -m pytest tests -q -p no:cacheprovider` in the new environment with external-service keys disabled.
+
+The isolated installation smoke check passed both portals, bundled assets, default engineer/customer logins, customer access restrictions, 36 simulated cells, advancing telemetry, an injected hardware fault and its investigation ticket. No external model calls were made.
+
+The README now separates **1. Local demo**, **2. Live AI and voice**, and **3. Docker RF twin**, with default accounts, manual commands, success checks and port-conflict instructions. Only Section 1 is required to run the basic demo.
+
+macOS/Linux and a fresh Docker/Maveric deployment were not exercised in this check. Live AI features require each judge's own provider access; the clean offline installation does not establish model availability or credits.
+
+## Earlier verification — 3 November 2026
+
 Checked on **3 November 2026** against a fresh clone of the public GitHub repository, with the launcher and installation fixes in this change applied before testing.
 
 ## Environment and scope

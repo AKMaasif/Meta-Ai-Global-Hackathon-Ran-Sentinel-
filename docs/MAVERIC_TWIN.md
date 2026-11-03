@@ -10,7 +10,7 @@ Code: `backend/app/maveric.py` (RADP client, training data, what-if), `backend/a
 
 ## Setup (once)
 
-You need Docker. In a separate folder:
+Install and start Docker first (Docker Desktop with Linux containers on Windows). This is the optional RF twin; follow [README Section 1](../README.md#run-it-windows) to install RAN Sentinel itself. In a separate folder:
 
 ```powershell
 git clone https://github.com/lf-connectivity/maveric.git
@@ -23,11 +23,11 @@ docker compose -f dc.yml -f dc-prod.yml up -d --build
 When the API answers on port 8080, go back to the RAN Sentinel folder:
 
 ```powershell
-py scripts\maveric_setup.py
+.\.venv\Scripts\python.exe scripts\maveric_setup.py
 ```
 
 The script writes `data/maveric/topology.csv` and `ue_training_data.csv`, trains the model `ran-sentinel-seattle`, waits until it
-is trained, and runs three test what-ifs. Then add `MAVERIC_URL=http://localhost:8080` to `.env` and restart `py run.py`.
+is trained, and runs three test what-ifs. Then add `MAVERIC_URL=http://localhost:8080` to `.env` and restart `.\.venv\Scripts\python.exe run.py`.
 The status bar shows "Twin: Maveric RADP".
 
 ## What it sends

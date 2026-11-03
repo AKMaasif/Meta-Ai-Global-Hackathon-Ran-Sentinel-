@@ -53,7 +53,7 @@ ran-sentinel/
 
 ### Windows
 
-Follow the [README installation instructions](../README.md#run-it-windows), which are the maintained quick start for Windows, macOS and Linux.
+Follow the [three-section README installation guide](../README.md#run-it-windows): **1. Local demo**, **2. Live AI and voice**, and **3. Docker RF twin**. Start with Section 1; the other two are optional. The guide includes manual Windows, macOS and Linux commands, default accounts and a success check.
 
 On Windows, double-click `start.bat` or run `.\start.bat` in PowerShell. The launcher creates `.venv` when absent, checks requirements on every run (including after an interrupted install), and creates `.env` only if missing. It then starts the server and prints both portal URLs. Open those URLs yourself and keep the terminal running. API keys are optional for the offline simulator.
 
