@@ -1,8 +1,22 @@
 # Local installation verification
 
+## Published test-branch results - 4 November 2026
+
+Implementation commit `3dc2f9596d3d3c609a737d7bdd3ef4d4630ef7f7` was pushed to `test/no-login-local-voice`; `main` was left unchanged. Both workflows completed successfully against that exact revision.
+
+| Platform | Results |
+|---|---|
+| GitHub-hosted Ubuntu, Python 3.14.9 | Fresh dependency installation and `pip check`; isolated no-key startup/demo/fault smoke check; **206 tests passed in 230.11 seconds**; **8 local-speech Chromium checks passed** |
+| GitHub-hosted Apple Silicon macOS, Python 3.14.10 | Fresh dependency installation and `pip check`; isolated no-key startup/demo/fault smoke check; **206 tests passed in 183.28 seconds**; **8 local-speech Chromium checks passed** |
+| Native Safari 26.6.2 on macOS | **15 checks passed**: demo entry, synthetic recording through silence detection and 16 kHz mono WAV conversion, local English voice filtering, Text only, conversational draft/correction/refresh, confirmation, duplicate prevention, clearing and viewport fit. The runner exposed 25 eligible installed voices. |
+
+[Linux/macOS installation run](https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-/actions/runs/41838616452) · [Native Safari run](https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-/actions/runs/41838616397).
+
+The owner separately confirmed physical microphone/listening behavior on Windows. Hosted audio input is synthetic and local-speech tests use test voices; physical macOS/Linux microphone permissions, transcription of real speech and audible speaker quality are not established by these runs. No live Meta calls were needed for these checks. The dated local notes below describe the work before publication.
+
 ## No-login demo and local speech revision - 4 November 2026
 
-This revision is local and has not been pushed. Both portals now use an Explore demo button rather than credentials. The external speech provider, its configuration and its diagnostic script have been removed. Only installed local English browser/OS voices are selected, with a Text only option and visible written replies.
+Before the test-branch publication above, this revision was checked locally. Both portals now use an Explore demo button rather than credentials. The external speech provider, its configuration and its diagnostic script have been removed. Only installed local English browser/OS voices are selected, with a Text only option and visible written replies.
 
 Current Windows results:
 
