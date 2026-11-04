@@ -2,7 +2,7 @@
 
 ## Published test-branch results - 4 November 2026
 
-Implementation commit `3dc2f9596d3d3c609a737d7bdd3ef4d4630ef7f7` was pushed to `test/no-login-local-voice`; `main` was left unchanged. Both workflows completed successfully against that exact revision.
+Implementation commit `3dc2f9596d3d3c609a737d7bdd3ef4d4630ef7f7` was first pushed to `test/no-login-local-voice`. Both workflows completed successfully against that exact revision. After those checks passed, the tested branch was merged into `main` on 4 November 2026.
 
 | Platform | Results |
 |---|---|
