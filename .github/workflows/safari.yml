@@ -5,6 +5,10 @@ on:
     paths:
       - '.github/workflows/safari.yml'
       - 'scripts/check_safari_ui.py'
+      - 'backend/**'
+      - 'frontend/**'
+      - 'requirements.txt'
+      - 'run.py'
   workflow_dispatch:
 
 permissions:

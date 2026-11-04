@@ -35,9 +35,9 @@ def main():
             probe.bind(('127.0.0.1', 0))
             port = probe.getsockname()[1]
         base = f'http://127.0.0.1:{port}'
-        env = dict(os.environ, MODEL_API_KEY='', GOOGLE_API_KEY='', FIREWORKS_API_KEY='', MAVERIC_URL='',
-                   OPS_EMAIL='ops@northstar.demo', OPS_PASSWORD='sentinel-demo',
-                   CUSTOMER_EMAIL='customer@northstar.demo', CUSTOMER_PASSWORD='connect-demo')
+        env = dict(os.environ, MODEL_API_KEY='', FIREWORKS_API_KEY='', MAVERIC_URL='',
+                   OPS_EMAIL='', OPS_PASSWORD='' ,
+                   CUSTOMER_EMAIL='', CUSTOMER_PASSWORD='')
         browser = None
         with (work / 'server.log').open('w+') as log:
             server = subprocess.Popen([sys.executable, str(work / 'run.py'), '--port', str(port)], cwd=work,
@@ -70,18 +70,14 @@ def main():
                     wait.until(attempt)
                 print('Browser:', browser.capabilities.get('browserName'), browser.capabilities.get('browserVersion'), flush=True)
                 browser.get(base + '/ops/')
-                wait.until(EC.visibility_of_element_located((By.ID, 'email'))).send_keys('ops@northstar.demo')
-                browser.find_element(By.ID, 'pw').send_keys('sentinel-demo')
-                click(By.CSS_SELECTOR, '.form button')
+                click(By.ID, 'demo-start')
                 wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.shell')))
-                check('engineer sign-in and console render in Safari')
+                check('engineer demo entry and console render in Safari')
                 check('engineer search control is available', browser.find_element(By.ID, 'gq').is_displayed())
                 browser.get(base + '/connect/#/login')
-                wait.until(EC.visibility_of_element_located((By.ID, 'em'))).send_keys('customer@northstar.demo')
-                browser.find_element(By.ID, 'pw').send_keys('connect-demo')
-                click(By.CSS_SELECTOR, '#f button')
+                click(By.ID, 'demo-start')
                 wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.app')))
-                check('customer sign-in and navigation render in Safari')
+                check('customer demo entry and navigation render in Safari')
                 supported = browser.execute_script('return !!(window.MediaRecorder && navigator.mediaDevices?.getUserMedia && (window.AudioContext || window.webkitAudioContext));')
                 check('Safari exposes the recording and Web Audio APIs', supported)
                 browser.execute_script("""
@@ -119,6 +115,22 @@ def main():
                 capture = wait.until(lambda d: d.execute_script('return window.__safariCapture'))
                 check('synthetic input passes Safari recording, silence detection and 16 kHz WAV conversion',
                       capture.get('header') == 'RIFF' and capture.get('rate') == 16000 and capture.get('channels') == 1 and capture.get('bytes', 0) > 44)
+                speech = browser.execute_script("""
+                    return {loaded: typeof window.LocalSpeech?.say === 'function',
+                        voices: (window.LocalSpeech?.voices() || []).map(v =>
+                            ({local: v.localService, lang: v.lang}))};
+                """)
+                check('Safari loads device speech and excludes non-local or non-English voices',
+                      speech['loaded'] and all(v['local'] is True and
+                      (v['lang'].lower() == 'en' or v['lang'].lower().startswith(('en-', 'en_')))
+                      for v in speech['voices']))
+                print('Eligible installed voices:', len(speech['voices']), flush=True)
+                text_only = browser.execute_async_script("""
+                    const done = arguments[arguments.length - 1];
+                    LocalSpeech.say('Text-only check', {voiceURI:'off'}).then(done);
+                """)
+                check('Safari Text only returns without starting speech',
+                      text_only.get('note', '').startswith('Text only'))
                 # UI tests keep speech silent; audibility requires a separate listening check.
                 browser.execute_script('''if (window.speechSynthesis) {
                     speechSynthesis.cancel = () => {};

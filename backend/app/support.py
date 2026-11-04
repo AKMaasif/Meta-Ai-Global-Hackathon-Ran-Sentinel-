@@ -344,7 +344,7 @@ ARTICLES = [
      "summary": "Hands-free help: speak, listen, and let it open the right page for you.",
      "keywords": "voice speak talk microphone mic listen",
      "body": ["Tap the Ask button with the glowing orb, above the tab bar on any screen, to start a voice conversation. The assistant listens, answers aloud and can open pages in the app for you. You can type instead of speaking at any time.",
-              "Your browser asks for microphone permission the first time. Answers are read aloud with Gemini voices when that key is set, and with your browser's own voice otherwise."],
+              "Your browser asks for microphone permission the first time. Replies use an installed local browser or OS voice. You can choose Text only; the written answer remains visible. Microphone transcription needs live Meta access."],
      "image": {"src": A + "voice.png", "alt": "Voice assistant sheet with the animated orb and a spoken answer",
                "caption": "The voice assistant sheet. It shows what it heard and each step it takes."}},
     {"id": "ai-privacy", "category": "app", "title": "What the AI can and can't see",

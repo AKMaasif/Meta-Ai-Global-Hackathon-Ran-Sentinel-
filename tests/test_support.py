@@ -17,9 +17,7 @@ def client(sentinel, monkeypatch):
 
 
 def login(c, portal):
-    s = main.settings
-    email, pw = (s.ops_email, s.ops_password) if portal == "ops" else (s.customer_email, s.customer_password)
-    assert c.post("/api/login", json={"email": email, "password": pw, "portal": portal}).status_code == 200
+    assert c.post("/api/demo/start", json={"portal": portal}).status_code == 200
 
 
 @pytest.fixture

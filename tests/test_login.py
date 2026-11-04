@@ -4,6 +4,12 @@ from fastapi import HTTPException, Request, Response
 from app import main
 
 
+@pytest.fixture(autouse=True)
+def private_accounts(monkeypatch):
+    for key, value in {"ops_email": "staff@example.test", "ops_password": "test-staff-secret", "customer_email": "member@example.test", "customer_password": "test-member-secret"}.items():
+        monkeypatch.setattr(main.settings, key, value)
+
+
 def login(email, pw, portal):
     main._failed.clear()
     req = Request({"type": "http", "client": ("test", 0), "headers": []})

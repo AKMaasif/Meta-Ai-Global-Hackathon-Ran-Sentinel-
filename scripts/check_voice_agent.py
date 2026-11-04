@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT / "backend"))
 from app.care import Care  # noqa: E402
 from app.config import settings  # noqa: E402
 from app.orchestrator import Sentinel  # noqa: E402
-from app.providers import GeminiSpeech, ProviderError, make_provider  # noqa: E402
+from app.providers import ProviderError, make_provider  # noqa: E402
 from app.store import Store  # noqa: E402
 
 SCRIPT = ["Please check my data connection at work",
@@ -26,10 +26,10 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--audio", type=Path, help="a WAV of you asking a question; it becomes the first turn")
     a = ap.parse_args()
-    provider, speech = make_provider(settings), GeminiSpeech(settings)
+    provider = make_provider(settings)
     print(f"Listen: {'none (no MODEL_API_KEY)' if provider.offline else settings.voice_model}")
     print(f"Think:  {'offline rules' if provider.offline else settings.primary_model}")
-    print(f"Speak:  {settings.tts_model + ' / ' + settings.tts_voice if speech.enabled else 'browser voice (no GOOGLE_API_KEY)'}\n")
+    print("Speak:  installed local browser/OS voice (test in the customer app)\n")
     script, ok = list(SCRIPT), True
     if a.audio:
         try:
@@ -51,15 +51,6 @@ def main() -> int:
         if r["by"].startswith("rules") and not provider.offline:
             print(f"    WARN Meta path fell back to rules ({r.get('note', '')})")
             ok = False
-        if speech.enabled:
-            try:
-                sp = speech.speak(r["answer"])
-                out = ROOT / "data" / f"voice_check_{n}.wav"
-                out.write_bytes(sp["wav"])
-                print(f"    voice: PASS {sp['model']} {sp['seconds']} s of speech in {sp['latency_s']} s -> {out}")
-            except ProviderError as e:
-                print(f"    voice: FAIL {e}")
-                ok = False
     sent = bool(care.reports)
     print(f"\nReport sent after the spoken yes: {'yes' if sent else 'NO'}")
     print("RESULT:", "PASS" if ok and sent else "CHECK THE LINES ABOVE")

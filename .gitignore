@@ -2,7 +2,6 @@
 *.env.local
 *[Aa]pi [Kk]ey*.txt
 *[Aa]pi_[Kk]ey*.txt
-*[Gg]oogle*[Kk]ey*.txt
 
 __pycache__/
 *.pyc
@@ -15,7 +14,6 @@ data/*.db-*
 data/*.wav
 data/telecomts/
 data/telecomts_features.csv.gz
-data/google_tts_*
 data/maveric/
 maveric/
 

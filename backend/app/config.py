@@ -46,11 +46,6 @@ class Settings:
     vision_model: str = field(default_factory=lambda: os.environ.get("VISION_MODEL", "muse-spark-1.3"))
     sam_model: str = field(default_factory=lambda: os.environ.get("SAM_MODEL", "sam-3.1"))
     voice_model: str = field(default_factory=lambda: os.environ.get("VOICE_MODEL", "muse-voice-transcribe-1.0"))
-    google_api_key: str = field(default_factory=lambda: os.environ.get("GOOGLE_API_KEY", "").strip())
-    google_base_url: str = field(default_factory=lambda: os.environ.get("GOOGLE_BASE_URL", "https://generativelanguage.googleapis.com/v1beta"))
-    tts_model: str = field(default_factory=lambda: os.environ.get("TTS_MODEL", "gemini-3.8-flash-lite-tts"))
-    tts_fallback_model: str = field(default_factory=lambda: os.environ.get("TTS_FALLBACK_MODEL", "gemini-3.8-flash-tts"))
-    tts_voice: str = field(default_factory=lambda: os.environ.get("TTS_VOICE", "Kore"))
     reasoning_effort: str = field(default_factory=lambda: os.environ.get("REASONING_EFFORT", "").strip().lower())
     agent_effort: dict = field(default_factory=lambda: _efforts(os.environ.get("AGENT_EFFORT", "")))
     fireworks_api_key: str = field(default_factory=lambda: os.environ.get("FIREWORKS_API_KEY", "").strip())
@@ -64,9 +59,9 @@ class Settings:
     maveric_timeout: float = field(default_factory=lambda: _float("MAVERIC_TIMEOUT_SECONDS", 90))
     tick_seconds: float = field(default_factory=lambda: _float("SIM_TICK_SECONDS", 3))
     ops_email: str = field(default_factory=lambda: os.environ.get("OPS_EMAIL", "ops@northstar.demo"))
-    ops_password: str = field(default_factory=lambda: os.environ.get("OPS_PASSWORD", "sentinel-demo"))
+    ops_password: str = field(default_factory=lambda: os.environ.get("OPS_PASSWORD", ""))
     customer_email: str = field(default_factory=lambda: os.environ.get("CUSTOMER_EMAIL", "customer@northstar.demo"))
-    customer_password: str = field(default_factory=lambda: os.environ.get("CUSTOMER_PASSWORD", "connect-demo"))
+    customer_password: str = field(default_factory=lambda: os.environ.get("CUSTOMER_PASSWORD", ""))
     fcc_users_per_site: int = field(default_factory=lambda: _int("FCC_USERS_PER_SITE", 1500))
     db_path: Path = ROOT / "data" / "sentinel.db"
 

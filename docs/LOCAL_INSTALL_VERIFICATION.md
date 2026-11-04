@@ -1,5 +1,35 @@
 # Local installation verification
 
+## No-login demo and local speech revision - 4 November 2026
+
+This revision is local and has not been pushed. Both portals now use an Explore demo button rather than credentials. The external speech provider, its configuration and its diagnostic script have been removed. Only installed local English browser/OS voices are selected, with a Text only option and visible written replies.
+
+Current Windows results:
+
+- **206 application tests passed**, 375.73 seconds. Seven obsolete cloud-speech tests were removed with the provider; six demo-access/local-speech contract tests were added. The run emitted three SQLite resource warnings from the existing test harness; no tests failed.
+- **8 local speech browser checks passed:** local-only voice selection, one utterance per reply, Text only, remote-only voice fallback, delayed voice discovery, cancellation during playback/discovery, playback errors and unsupported browsers.
+- **12 voice UI checks, 14 voice-memory checks, 53 support UI checks and 12 live-refresh checks passed** against a separate temporary no-key server. Two additional navigation regression checks exercise entering a draft during a delayed refresh and leaving a draft before its request completes. These cover actual frontend/backend workflows, draft correction, exact approval IDs, cancellation, retries, session separation and ordinary support/refresh behavior. Browser voice tests use synthetic voices; they do not establish audible quality.
+- The isolated no-key installation smoke check passed both demo roles, assets, customer access boundaries, 36 simulated cells and an investigated fault. No external accounts, credentials, API keys or model requests were used.
+- The revised smoke check also passed on local Ubuntu/WSL using the previously installed Python 3.14 environment. Dependencies did not change. This is a local working-tree check, not a newly published GitHub clone.
+
+A repeat browser run exposed an intermittent draft-navigation request inheriting an aborted polling signal. Stopping polling now clears that signal before page entry, and delayed network/draft responses cannot repaint another page. The focused regression checks reproduce those timing conditions.
+
+The manuals were updated in place from their original 32-page and 41-page PDF editions, retaining their existing designs, charts, explanations, section order and page numbering. Entry/voice screenshots and the affected content were refreshed. Their setup instructions contain no demo credentials. The industry chapter keeps its original sources, assumptions and measured dates; these are not new measurements.
+
+The owner confirmed on 4 November that the physical microphone and listening check works on Windows. macOS/native Safari hosted checks require publication and have not been rerun; the successful hosted results below belong to the earlier revision. Live Meta access and a refreshed three-minute video demonstrating actual Meta calls are separate from the accepted no-account sample-data path. No new live-provider call was made in this local verification.
+
+### Documentation and setup follow-up - 4 November 2026
+
+The README, walkthrough and Markdown guides were checked against the current local implementation. Stale credential instructions, the former speech-provider entry, an obsolete CI environment variable and old speech-provider settings were removed. The setup guide now includes direct virtual-environment commands for Windows, macOS and Linux. Original PDF layouts remain unchanged by this follow-up.
+
+Repeated checks passed: isolated no-key installation smoke test; **37 voice, memory and demo-access tests** in 63.11 seconds; **8 local speech browser checks**; dependency consistency (`pip check`); Python compilation; and **84 relative documentation links** across 18 Markdown files. A source/configuration scan found no obsolete speech-provider references. These are local working-tree checks, not a fresh hosted macOS run or a new live Meta/audio assessment. No commit or GitHub push was made.
+
+### Current Linux check and prepared macOS tests - 4 November 2026
+
+The owner confirmed that physical microphone input and local speech output work on Windows. The current working tree then passed the isolated no-key installation check on Ubuntu/WSL2, Python 3.14.4, and **37 demo-access, voice and memory tests in 39.89 seconds**. This used the existing Linux virtual environment and current source files; it was not a fresh package installation or a Linux desktop microphone/speaker test.
+
+The Linux/macOS installation workflow now includes the eight synthetic local-speech Chromium checks. The native Safari workflow now runs when application or voice files change, and its script additionally checks that device speech loads, eligible voices are local English voices, and Text only works. The workflow files parse and the Safari script compiles locally. These revised remote jobs have not run because this revision remains local. A macOS runner is needed to execute native Safari; Windows WebKit emulation would not establish macOS system voice behavior. Hosted audio checks use synthetic input and cannot confirm physical microphone permissions, speaker quality or recognition of a person's speech.
+
 ## Native Safari, audio and Docker — 4 November 2026
 
 ### Actual Safari browser
@@ -97,4 +127,4 @@ The clean install resolved FastAPI 0.162.0, Uvicorn 0.54.0, NumPy 2.5.4, scikit-
 
 ## Limits
 
-macOS, Linux and other Python versions were not exercised in this clean-install check. Their setup commands are supplied in the README. Initial dependency installation needs internet access. Live Meta, Google and Maveric features require the user's own access and services; this offline check does not validate provider availability, credits or model permissions. Browser microphone and speech capabilities also depend on the browser. Run one server per checkout because simulator state resets on startup. This repository is a local demo, with simulated radio controls, rather than a production deployment package.
+macOS, Linux and other Python versions were not exercised in this clean-install check. Their setup commands are supplied in the README. Initial dependency installation needs internet access. Live Meta features require API access; the optional Maveric twin needs a separately running service; this offline check does not validate provider availability, credits or model permissions. Browser microphone and speech capabilities also depend on the browser. Run one server per checkout because simulator state resets on startup. This repository is a local demo, with simulated radio controls, rather than a production deployment package.

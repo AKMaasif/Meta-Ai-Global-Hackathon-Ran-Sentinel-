@@ -1,6 +1,8 @@
 # Implementation and test report: live refresh fix and documentation
 
-Date: 2026-10-28. Scope: fix the continuous-refresh flicker and the clicks that needed repeating, without losing live updates, and write the system documentation from the source.
+Original report: 2026-10-28. Current verification: [4 November local results](LOCAL_INSTALL_VERIFICATION.md). The measurements below retain their original dates and apply to the revisions named.
+
+Scope: fix the continuous-refresh flicker and the clicks that needed repeating, without losing live updates, and write the system documentation from the source.
 
 ## 1. Summary
 
@@ -92,7 +94,7 @@ These were checked with one-off measurement scripts during the fix and are not i
 
 - **Poll volume:** polling sends full snapshots. If the network grows well beyond 36 cells, add an incremental `/api/state?since=` or a Server-Sent Events stream for alarms.
 - **Row matching:** `morph` matches list rows by position when they have no id. Adding ids to table rows would make re-sorts exact.
-- **Security gaps:** these are listed in [Security](SECURITY_AND_ACCESS_CONTROL.md) section 7: sessions with no expiry, no CSRF tokens, no rate limit, and default demo passwords if `.env` does not set them.
+- **Security gaps:** these are listed in [Security](SECURITY_AND_ACCESS_CONTROL.md) section 7: sessions with no expiry, no CSRF tokens and no general request rate limit. The current build has open sample-data entry; optional private API sign-in is disabled when passwords are empty.
 
 ## 7. Change history
 
@@ -103,7 +105,7 @@ From the work in this project, most recent first:
 | Field evidence files: photo, CSV, PDF, DOCX and TXT attached on the incident page and read by the Field Document Analyst (Muse Spark); `check_field_files.py` live check. RAN Optimisation card shows the change as a facts table with a collapsible second opinion. Every submit button shows a busy state. 129 tests pass | `fielddocs.py`, `agents.py`, `orchestrator.py`, `frontend/ops/`, `frontend/shared/ui.js` |
 | Maveric RF twin wired in: trains on the Seattle cluster, predicts coverage before and after tilt or power changes (MAE 1.26 dB vs the radio model) | `maveric.py`, `twin.py`, `scripts/maveric_setup.py`, [MAVERIC_TWIN.md](MAVERIC_TWIN.md) |
 | Verified investigation from Meta's legal-agent workshop: diagnosis verifier, field-evidence pause and resume, root-cause sign-off, living plan, one tool per turn, checkpoints and resume; investigation eval script; reasoning effort per agent; UL interference threshold fix (mild interference was missed). 120 tests pass | `verify.py`, `workplan.py`, `orchestrator.py`, `agents.py`, `scripts/eval_investigation.py`, [VERIFIED_INVESTIGATION.md](VERIFIED_INVESTIGATION.md) |
-| Customer voice agent: Muse Voice Transcribe + Muse Spark + Gemini TTS, orb UI, instant commands, sentence-by-sentence speech | `care.py`, `providers.py`, `frontend/connect/`, [VOICE_AGENT.md](VOICE_AGENT.md) |
+| Customer voice agent: Muse Voice Transcribe + Muse Spark + installed local device speech, orb UI, instant commands, whole-response utterances | `care.py`, `providers.py`, `frontend/connect/`, [VOICE_AGENT.md](VOICE_AGENT.md) |
 | Live refresh fix, documentation set, `.gitignore` key-file patterns | this report |
 | Live agent audit script; customer map limited to 3 km; signal card and Signal Analyst; ops map site popups; map fixes | `scripts/audit_agents.py`, `care.py`, `radio.py`, `geomap.js` |
 | Northstar Connect customer app with the AI care layer and Care Concierge | `care.py`, `frontend/connect/` |

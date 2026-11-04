@@ -32,7 +32,7 @@ The problems it addresses:
 - **Risky changes:** configuration changes go out without a predicted impact or a rollback.
 - **Customers in the dark:** customers learn about problems late and get little detail.
 
-There are two roles, ops and customer. Each is a separate sign-in with its own session cookie. Department roles (RAN Optimisation, Field Operations and so on) are ticket owners, not separate logins: the one ops user acts for every department. See [Security](SECURITY_AND_ACCESS_CONTROL.md).
+There are two roles, ops and customer. Each opens through a no-login demo button and has its own role-scoped session cookie. Both roles are open to local visitors; this is not a production identity system. Department roles (RAN Optimisation, Field Operations and so on) are ticket owners, not separate logins: the one ops user acts for every department. See [Security](SECURITY_AND_ACCESS_CONTROL.md).
 
 ## 2. Components
 
@@ -253,6 +253,6 @@ Nothing in the app reads real network measurements. `scripts/benchmark_telecomts
 | AI provider | Meta Model API (`META_BASE_URL`, default `https://api.meta.ai/v1`) | all model calls | see [AI agents and models](AI_AGENTS_AND_MODELS.md) |
 | Twin (optional) | Maveric RADP (`MAVERIC_URL`) | external what-if engine | coverage before/after a tilt or power change; falls back to the simulator copy if unavailable |
 | Background work | one `threading.Thread` (tick) + `ThreadPoolExecutor(2)` (investigations) | — | no external queue or scheduler |
-| Deployment | local only: `run.py` / `start.bat` on 127.0.0.1:8000 | — | no container, cloud or CI configuration exists in the repository |
+| Deployment | local only: `run.py` / `start.bat` on 127.0.0.1:8000 | — | no app container or hosted deployment; GitHub Actions checks installation on Linux and macOS |
 
 There is no message queue, no external scheduler, no WebSocket or SSE, no ORM and no migration tool.

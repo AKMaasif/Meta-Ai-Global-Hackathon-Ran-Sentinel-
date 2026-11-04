@@ -6,17 +6,20 @@ RAN Sentinel is a local demo, not a production service. This document states wha
 - **Partial:** present but limited.
 - **Missing:** not in the code.
 
-## 1. Authentication and sessions
+## 1. Demo entry and sessions
+
+The local evaluation build intentionally offers both roles without credentials through `POST /api/demo/start` with a validated portal. This creates a normal role-scoped session cookie, not a production identity. Anyone who can reach the app can choose either role. This is appropriate only for fictional local data, not a public private-account service. The open demo does not bypass customer confirmation or engineer approval.
+
 
 | Control | Status | Detail |
 | --- | --- | --- |
-| Sign-in | Implemented | `POST /api/login` with `{email, password, portal}`. One account per portal from `.env`: `OPS_EMAIL` / `OPS_PASSWORD` and `CUSTOMER_EMAIL` / `CUSTOMER_PASSWORD`. Compared with `secrets.compare_digest` (`main._matches`). |
+| Sign-in | Implemented | `POST /api/login` with `{email, password, portal}`. Optional private accounts per portal from `.env`: `OPS_EMAIL` / `OPS_PASSWORD` and `CUSTOMER_EMAIL` / `CUSTOMER_PASSWORD`. Compared with `secrets.compare_digest` (`main._matches`). |
 | Wrong portal | Implemented | Right credentials on the wrong sign-in page return `403` with a pointer to the right app, never a session (tested in `tests/test_login.py`). |
 | Session token | Implemented | `secrets.token_urlsafe(24)`, stored in the in-memory `sessions` dict with its portal (a customer token in the ops cookie, or the reverse, gets 401; tested), sent as cookie `rs_ops` or `rs_connect` with `HttpOnly` and `SameSite=Lax`. |
 | Logout | Implemented | `POST /api/logout` removes both sessions and cookies. |
 | Session expiry | Missing | Sessions last until logout or server restart. |
 | Secure cookie flag | Missing | Not set, because the app is served over plain HTTP on 127.0.0.1. Must be added if the app is ever served over HTTPS. |
-| Password storage | Partial | Plain values from `.env`, not hashes. `config.py` has built-in demo defaults if `.env` does not set them, so set your own before sharing a demo. |
+| Password storage | Partial | Plain values from `.env`, not hashes. Passwords default to empty; empty passwords cannot authenticate. Demo entry does not depend on these optional private settings. Configuring a private password does not disable open demo access. |
 | Rate limiting or lockout | Implemented | 5 wrong passwords from one address lock sign-in for 5 minutes (`429`). In memory, per client address (tested in `tests/test_security.py`). |
 | CSRF protection | Partial | Only `SameSite=Lax` and JSON bodies; there are no CSRF tokens. |
 

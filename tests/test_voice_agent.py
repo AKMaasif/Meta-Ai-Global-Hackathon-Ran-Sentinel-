@@ -1,14 +1,8 @@
-import base64
 import json
-import wave
-import io
 
-import httpx
 import pytest
 
 from app.care import Care
-from app.config import Settings
-from app.providers import GeminiSpeech, ProviderError
 
 
 def test_connection_test_by_voice_opens_network_page(sentinel):
@@ -82,43 +76,6 @@ def test_typed_concierge_cannot_use_confirm_tool(sentinel):
     assert c.prefs["data_saver"] is False
 
 
-def _speech(handler, key="test-key"):
-    s = Settings()
-    s.google_api_key = key
-    return GeminiSpeech(s, http=httpx.Client(transport=httpx.MockTransport(handler)))
-
-
-def test_gemini_tts_request_and_wav():
-    seen = []
-    pcm = b"\x01\x00" * 24000
-
-    def handler(req):
-        seen.append(req)
-        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"inlineData": {"mimeType": "audio/L16;rate=24000", "data": base64.b64encode(pcm).decode()}}]}}]})
-    r = _speech(handler).speak("Your signal is good at home.")
-    body = json.loads(seen[0].content)
-    assert seen[0].url.path.endswith("/models/gemini-3.8-flash-lite-tts:generateContent") and seen[0].headers["x-goog-api-key"] == "test-key"
-    assert body["generationConfig"]["responseModalities"] == ["AUDIO"] and body["contents"][0]["parts"][0]["text"] == "Your signal is good at home."
-    with wave.open(io.BytesIO(r["wav"])) as w:
-        assert (w.getframerate(), w.getnchannels(), w.getsampwidth(), w.getnframes()) == (24000, 1, 2, 24000)
-    assert r["seconds"] == 1.0
-
-
-def test_gemini_tts_falls_back_then_raises():
-    paths = []
-
-    def handler(req):
-        paths.append(req.url.path)
-        if "lite" in req.url.path:
-            return httpx.Response(500, text="busy")
-        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"inlineData": {"data": base64.b64encode(b"\0\0" * 10).decode()}}]}}]})
-    assert _speech(handler).speak("hi")["model"] == "gemini-3.8-flash-tts" and len(paths) == 2
-    with pytest.raises(ProviderError):
-        _speech(lambda req: httpx.Response(403, text="denied")).speak("hi")
-    with pytest.raises(ProviderError):
-        _speech(handler, key="").speak("hi")
-
-
 class NoModel:
     offline, label, outage, calls = False, "must not be called", "none", []
 
@@ -153,46 +110,6 @@ def test_plain_text_reply_is_used_without_json(sentinel):
     ])
     r = c.concierge("Report the problem, my data is slow at work", voice=True)
     assert r["by"] == "muse-spark-1.3" and r["answer"].startswith("I can report")
-
-
-def test_audio_edges_softened_without_cutting_words():
-    import struct
-    from app.providers import soften_pcm_edges
-    pcm = struct.pack("<1000h", *([12000] * 1000))
-    out = struct.unpack("<1000h", soften_pcm_edges(pcm, 24000))
-    assert len(out) == 1000 and out[0] == out[-1] == 0
-    assert out[120:880] == (12000,) * 760
-
-
-def test_tts_joins_audio_parts_and_respects_sample_rate():
-    pcm = b"\x01\x00" * 16000
-    def handler(req):
-        parts = [{"text": "metadata"}] + [{"inlineData": {"mimeType": "audio/L16;rate=16000", "data": base64.b64encode(pcm).decode()}}] * 2
-        return httpx.Response(200, json={"candidates": [{"content": {"parts": parts}}]})
-    r = _speech(handler).speak("First sentence. Second sentence.")
-    with wave.open(io.BytesIO(r["wav"])) as w:
-        assert w.getframerate() == 16000 and w.getnframes() == 32000
-
-
-@pytest.mark.parametrize("mime,data", [("audio/mp3", b"1234"), ("audio/L16;rate=24000", b"123")])
-def test_tts_rejects_invalid_audio_instead_of_playing_noise(mime, data):
-    def handler(req):
-        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"inlineData": {"mimeType": mime, "data": base64.b64encode(data).decode()}}]}}]})
-    with pytest.raises(ProviderError):
-        _speech(handler).speak("hello")
-
-
-def test_tts_decodes_wav_container_instead_of_speaking_its_header():
-    from app.providers import pcm_to_wav
-    pcm = b"\x01\x00" * 22050
-    audio = pcm_to_wav(pcm, 22050)
-    def handler(req):
-        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"inlineData": {"mimeType": "audio/wav", "data": base64.b64encode(audio).decode()}}]}}]})
-    r = _speech(handler).speak("Hello.")
-    with wave.open(io.BytesIO(r["wav"])) as w:
-        assert w.getframerate() == 22050 and w.getnframes() == 22050
-        frames = w.readframes(w.getnframes())
-        assert b"RIFF" not in frames and b"WAVE" not in frames
 
 
 def test_complaint_draft_is_visible_but_unsent_until_confirmation(sentinel):

@@ -20,6 +20,8 @@ See the application and its engineering workflow. The preview opens the video on
 
 Explore the product vision for clearer customer updates and less repetitive investigation work.
 
+The linked videos show an earlier revision. A refreshed submission recording is needed to show the no-login entry, local device speech and actual live Meta calls in the current build.
+
 RAN Sentinel watches a cluster of LTE cells in Seattle, WA (US bands B66, B2 and B71) and spots a degrading cell. Muse Spark agents investigate it with read-only tools and propose a fix. Fixed safety rules and a digital twin check that fix before anyone sees it. The recommendation then goes to the right department. When a configuration change is approved, it is sent as an Open M-Plane change package with automatic rollback, and the cell is watched until it recovers. Customers of the fictional operator **Northstar Connect** see only confirmed, plain-language updates.
 
 Everything runs on a **simulated** network. Nothing here connects to a real operator.
@@ -34,7 +36,7 @@ Everything runs on a **simulated** network. Nothing here connects to a real oper
 - **Detection benchmarked** on the open TelecomTS dataset.
 - **Customer side:** plain-language network updates, a hands-free **voice agent** that operates the app ([details](docs/VOICE_AGENT.md)), and a help center with support requests.
 - **Demo controls** for live fault injection, plus red-team, twin outage, diagnostics outage and model outage switches that show every safety path. A guided walkthrough is in [DEMO.md](DEMO.md).
-- **207 automated tests.** The code is MIT-licensed ([LICENSE](LICENSE)).
+- **206 automated tests.** The code is MIT-licensed ([LICENSE](LICENSE)).
 
 ## Follow the evidence
 
@@ -55,7 +57,7 @@ What's built for the US market:
 
 ## Why it matters: industry impact and business case
 
-Mobile networks are run by small teams watching very large numbers of cells. When one cell degrades, an engineer still gathers the evidence by hand, decides the cause and pushes a configuration change, and a wrong change can take down far more than the cell it was meant to fix. RAN Sentinel automates the gathering and the first diagnosis, proves every change safe with fixed rules and an RF twin, and leaves the decision with the engineer.
+Mobile networks are run by small teams watching very large numbers of cells. When one cell degrades, an engineer still gathers the evidence by hand, decides the cause and pushes a configuration change, and a wrong change can take down far more than the cell it was meant to fix. RAN Sentinel automates the gathering and the first diagnosis, checks proposed changes against fixed rules and an RF twin, and leaves the decision with the engineer.
 
 | | | |
 |---|---|---|
@@ -136,24 +138,20 @@ RAN Sentinel is not a replacement for a vendor's SON or an operator's OSS. Large
 | [Verified investigation](docs/VERIFIED_INVESTIGATION.md) | the verifier, field-evidence pause, living plan, checkpoints and resume, sign-off, and how each maps to Meta's legal-agent workshop |
 | [Maveric RF twin](docs/MAVERIC_TWIN.md) | the what-if on Meta's Maveric RADP: setup with Docker, what it sends, measured accuracy |
 | [Customer voice agent](docs/VOICE_AGENT.md) | model roles, capture and playback, conversation memory, customer approval and setup |
-| [Security and access control](docs/SECURITY_AND_ACCESS_CONTROL.md) | sign-in, roles, customer data limits, secrets, known gaps |
+| [Security and access control](docs/SECURITY_AND_ACCESS_CONTROL.md) | demo access, portal sessions, customer data limits, secrets and known gaps |
 | [Implementation and test report](docs/IMPLEMENTATION_AND_TEST_REPORT.md) | the live-refresh fix with before/after numbers, test results, change history |
 
 ## Run it (Windows)
 
-Start with **Section 1**. It runs both apps and the simulator without API keys. **Section 2** adds live AI and speech; **Section 3** adds the optional Docker RF twin.
+Start with **Section 1**. It runs both apps and the simulator without API keys. **Section 2** adds live Meta reasoning and microphone transcription; **Section 3** adds the optional Docker RF twin.
 
 | Section | What you can run | What you need |
 |---|---|---|
 | **1. Local demo** | Both portals, simulated network, offline investigations and typed voice-assistant conversations | Git, 64-bit Python 3.10+ and internet for the first package installation |
-| **2. Live AI and voice** | Meta agents, microphone transcription and Gemini Kore speech | Your own Meta/Google API access and credits; microphone permission |
+| **2. Live AI and voice** | Meta agents and microphone transcription; local device speech | Optional Meta API access and credits; microphone permission for live transcription |
 | **3. Docker RF twin** | Maveric coverage predictions before a proposed radio change | A running Docker installation and the separate Maveric service |
 
-**Verified installations:** Windows (fresh local clone), Linux (Ubuntu/WSL and a GitHub-hosted Ubuntu runner), and macOS (an Apple Silicon GitHub runner), using Python 3.14. The hosted Linux and macOS checks each passed all **207 tests** plus installation and startup checks for both portals. See the [verification record](docs/LOCAL_INSTALL_VERIFICATION.md) and [public test run](https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-/actions/runs/41698614152).
-
-[![Linux and macOS installation checks](https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-/actions/workflows/local-install.yml/badge.svg)](https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-/actions/workflows/local-install.yml)
-
-**Browser and audio checks:** [native Safari 26.6.2 passed all 13 checks](https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-/actions/runs/41702251423), including synthetic audio capture and WAV conversion. The project owner also confirmed a physical microphone draft-and-cancel test on their PC. See the [verification details](docs/LOCAL_INSTALL_VERIFICATION.md) for the exact coverage and limits.
+**Local submission update (4 November):** the current build opens both demos without credentials and uses installed browser/OS voices. Windows checks passed 206 application tests, 8 speech checks and the existing voice, memory, support and refresh browser suites; the revised no-key smoke check also passed on Ubuntu/WSL. Earlier [Linux/macOS installation](https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-/actions/runs/41698614152) and [native Safari](https://github.com/AKMaasif/Meta-Ai-Global-Hackathon-Ran-Sentinel-/actions/runs/41702251423) checks cover the previous revision. Current local results and remaining checks are in the [verification record](docs/LOCAL_INSTALL_VERIFICATION.md).
 
 ### 1. Install and run the local demo
 
@@ -203,12 +201,14 @@ If creating the environment fails, install the missing prerequisite and repeat t
 
 #### Open both portals
 
-| Portal | Local address | Default email | Default password |
-|---|---|---|---|
-| Engineer console | http://127.0.0.1:8000/ops/ | `ops@northstar.demo` | `sentinel-demo` |
-| Customer app | http://127.0.0.1:8000/connect/ | `customer@northstar.demo` | `connect-demo` |
+| Portal | Local address | Start exploring |
+|---|---|---|
+| Engineer console | http://127.0.0.1:8000/ops/ | Choose **Explore engineer demo** |
+| Customer app | http://127.0.0.1:8000/connect/ | Choose **Explore customer demo** |
 
-These are local demo accounts, not your Meta login. Values set in `.env` override these defaults. Use the matching sign-in page for each account. The simulator and ML initialization can take several seconds on first start.
+**No signup, login credentials, external account or API key is required for this demo.** It uses 36 simulated LTE cells, a fictional carrier and sample customer data. Both roles are intentionally open for local evaluation. They share the demo network and fictional account; voice conversations and pending voice approvals belong to each browser session. This is not a private customer service.
+
+Without Meta access, investigations and typed assistant conversations use labelled offline rules. Spoken replies can use an installed local English voice; choose **Text only** if none is available. Microphone transcription, live Meta reasoning and AI image analysis require Meta API access and are not part of the no-key path. Initialization can take several seconds on first start.
 
 If port 8000 is already occupied, use the existing server or choose another port:
 
@@ -222,7 +222,7 @@ Then open `http://127.0.0.1:8001/ops/` and `http://127.0.0.1:8001/connect/`. Run
 
 The app works without keys using a clearly labelled **offline rules engine**. To enable Meta agents, edit `.env`, set `MODEL_API_KEY` to your own Meta Model API key, then restart. Your account needs access and credits for the configured model IDs; account access and provider availability cannot be guaranteed by this repository.
 
-- `GOOGLE_API_KEY`: optional Gemini text-to-speech; without it, spoken replies use the browser voice when available. Meta voice transcription still requires Meta access and microphone permission.
+- Spoken replies use an installed local browser/OS voice. No speech API key, paid TTS service or model download is needed. Voice names and sound differ between devices; online-only voices are excluded.
 - `MAVERIC_URL`: optional separately deployed RF twin; leave empty for the labelled simulator twin. See [Maveric setup](docs/MAVERIC_TWIN.md).
 - Internet is needed for model calls and street-map tiles; bundled map outlines and offline investigation work without those services.
 
@@ -230,10 +230,9 @@ For example, edit these entries in `.env` with your own keys; keep them empty to
 
 ```dotenv
 MODEL_API_KEY=
-GOOGLE_API_KEY=
 ```
 
-Save the file, stop the server with **Ctrl+C**, and start it again. In Northstar Connect, open **Ask** and allow microphone access. Without a Meta key, use the text box instead of speech input; without a Google key, spoken output uses the browser voice when available.
+Save the file, stop the server with **Ctrl+C**, and start it again. In Northstar Connect, open **Ask** and allow microphone access. Without a Meta key, use the text box instead of speech input; spoken output uses a local English voice when available, with the written answer always visible.
 
 Never commit `.env` or put a key in browser code. Shell environment variables override `.env`; clear old `MODEL_API_KEY`, `MAVERIC_URL` or other overrides if the selected mode is unexpected.
 
@@ -245,7 +244,7 @@ The following checks make live requests and can consume API credits; they are **
 .\.venv\Scripts\python.exe scripts/audit_agents.py
 ```
 
-For an offline check, run `.\.venv\Scripts\python.exe scripts/check_local_install.py`. It starts a temporary isolated demo on a free port and checks sign-in, static assets, both portals, and one incident; it does not use your API keys or existing database. Tests: `.\.venv\Scripts\python.exe -m pytest tests -q`.
+For an offline check, run `.\.venv\Scripts\python.exe scripts/check_local_install.py`. It starts a temporary isolated demo on a free port and checks no-login entry, static assets, both portals, and one incident; it does not use your API keys or existing database. Tests: `.\.venv\Scripts\python.exe -m pytest tests -q`.
 
 ### 3. Add the Docker RF twin (optional)
 
@@ -264,7 +263,7 @@ On macOS/Linux use `.venv/bin/python` for the training command. A separate fresh
 
 #### Check that your installation worked
 
-After Section 1, wait for **Application startup complete**, open both portal links and sign in with the accounts above. The simulator clock should advance. In the engineer console, use **Demo controls** to create a hardware fault and watch it produce an incident and department ticket.
+After Section 1, wait for **Application startup complete**, open both portal links and choose **Explore engineer demo** or **Explore customer demo**. The simulator clock should advance. In the engineer console, use **Demo controls** to create a hardware fault and watch it produce an incident and department ticket.
 
 For an automated check from the project folder, run:
 
@@ -272,7 +271,7 @@ For an automated check from the project folder, run:
 .\.venv\Scripts\python.exe scripts/check_local_install.py
 ```
 
-This creates an isolated temporary demo and checks both portals, static files, sign-in, live telemetry, a fault investigation and its ticket. It does not require your API keys or reset your existing demo. Node.js and Docker are not needed for this check.
+This creates an isolated temporary demo and checks both portals, static files, no-login demo entry, live telemetry, a fault investigation and its ticket. It does not require your API keys or reset your existing demo. Node.js and Docker are not needed for this check.
 
 ## The operations console
 
@@ -337,8 +336,8 @@ Open the **Ask** orb and speak naturally. You can ask about your connection, ope
 |---|---|
 | Listen | The browser records until you pause. **Meta Muse Voice Transcribe** turns the recording into text. |
 | Understand and act | **Muse Spark** uses customer-scoped tools. Common follow-ups such as “report that” and draft corrections can run directly from the remembered context. Current network and account questions still fetch fresh information. |
-| Remember | The server keeps recent dialogue, brief older notes, the current issue, one pending proposal and completed actions within your signed-in session. A page refresh restores the conversation and draft. |
-| Speak | **Gemini 3.8 Flash-Lite TTS**, with Flash TTS as fallback, reads the complete answer in the **Kore** voice as one continuous clip. Tap the orb to interrupt. |
+| Remember | The server keeps recent dialogue, brief older notes, the current issue, one pending proposal and completed actions within your customer demo session. A page refresh restores the conversation and draft. |
+| Speak | An **installed local browser/OS English voice** reads the complete answer in one utterance. Select a voice or Text only. Tap the orb to interrupt. No cloud TTS is called. |
 
 **You stay in control.** Complaints, credits and setting changes need a later explicit confirmation or a tap on Confirm. Revising a draft invalidates its previous approval ID, and retrying a request cannot submit it twice. The **New conversation** button clears voice context. Memory is held in server RAM and expires after 30 minutes of inactivity on the next access; logout and server restart also clear it.
 
@@ -466,12 +465,12 @@ After the full investigation, the correct root cause ranked first in 97.9% of si
 - **TelecomTS vs live data:** TelecomTS validates the detection method on real 5G testbed telemetry: per-UE KPIs every 100 ms. The live demo runs on simulated cell-level KPIs every 15 minutes, because no open dataset offers a cell cluster with config control.
 - **Twin:** with Maveric running, coverage comes from Maveric's RF twin trained on modelled (not drive-test) RSRP; load still comes from the simulator copy. Without it, the labelled fallback twin does both.
 - **Open M-Plane:** XML uses simplified, O-RAN-style element names and goes to an in-process simulated radio unit, not real hardware or the open-mplane C stack.
-- **Meta models:** every model passed `check_meta.py` on a real key (2026-10-28). A later voice check generated a Kore reply and transcribed it through Meta; a real-microphone accuracy benchmark is still pending. Try `--audio` with a recorded note.
+- **Meta models:** every model passed `check_meta.py` on a real key (2026-10-28). Earlier live transcription was verified; the revised build uses local device speech, with a new owner listening check pending. Try `--audio` with a recorded note.
 - **Maps:** the street basemap needs internet; state outlines are offline. Towers and coverage are modelled, not surveyed.
 - **Agent audit:** `scripts/audit_agents.py` runs every agent live; its logic is tested with a scripted stand-in, and the live result depends on your key.
 - **Support labels:** hypothesis support levels describe evidence strength, not calibrated probabilities.
 - **Verified investigation:** measured offline only so far; run `eval_investigation.py --live` for the Muse Spark agents. Resume covers model API failures; restarting the server resets the demo.
-- **Voice agent:** spoken replies use Gemini TTS (Google), because Meta has no text-to-speech model yet; without a Google key the browser voice is used. Live model follow-ups, speech generation and a transcription round trip were checked; recognition accuracy and end-to-end latency on real customer devices have not been benchmarked.
+- **Voice agent:** local speech output varies by browser/OS. Text remains available if speech fails. Meta powers live transcription and broader reasoning; simple commands can use deterministic tools. The owner confirmed the revised microphone/listening flow on Windows; physical audio on macOS and Linux remains unverified. Recognition accuracy and conversation latency across customer devices have not been benchmarked.
 - **Reasoning effort:** the Meta API accepts every level (minimal to max) on Muse Spark 1.3 (`check_effort.py`, 2026-10-31). On a simple RCA question, minimal was right in 1.8 s with 134 tokens, against 3.2 s and 453 tokens with no setting. `AGENT_EFFORT` stays optional.
 
 ## Folder structure
@@ -482,10 +481,10 @@ run.py, start.bat          start the server (start.bat also creates the venv and
 requirements.txt           Python packages
 backend/app/               FastAPI app: main.py (routes), orchestrator.py, agents.py, simulator.py,
                            detection.py, safety.py, mplane.py, care.py (customer app), support.py (help
-                           and support), store.py (SQLite), providers.py (Meta, Google), radio.py, twin.py
+                           and support), store.py (SQLite), providers.py (Meta models), radio.py, twin.py
 frontend/ops/              operations console (/ops/)
 frontend/connect/          Northstar Connect customer app (/connect/); help/ holds the article screenshots
-frontend/shared/           shared UI helpers (in-place page updates, polling, API calls)
+frontend/shared/           shared UI helpers, polling, API calls and local speech playback
 tests/                     pytest suite (python -m pytest tests -q)
 scripts/                   live model checks, benchmarks and the browser checks (check_*.js)
 samples/                   sample field-evidence files for the demo
@@ -508,22 +507,22 @@ Open M-Plane and Maveric are referenced, not bundled. No Meta or vendor endorsem
 ## Tests
 
 ```powershell
-python -m pytest tests -q
+.\.venv\Scripts\python.exe -m pytest tests -q
 ```
 
-207 tests cover the safety rules, M-Plane rollback, detection (no false alerts on a normal day; every fault detected), all five fault scenarios end to end, and the Muse Spark code path. The Muse Spark tests use a scripted stand-in for the API, covering tool calls, the repair loop, the evidence loop, the customer-text filter, model fallback and full outage. Further tests cover:
+206 tests cover the safety rules, M-Plane rollback, detection (no false alerts on a normal day; every fault detected), all five fault scenarios end to end, and the Muse Spark code path. The Muse Spark tests use a scripted stand-in for the API, covering tool calls, the repair loop, the evidence loop, the customer-text filter, model fallback and full outage. Further tests cover:
 - the FCC check, the ZIP-aware assistant, the reviewer and reporter agents, and the TelecomTS pipeline;
 - the SAM and voice request formats, against a mock HTTP server;
 - photo evidence and the voice-intent hints;
 - the Wonder briefs and handover, and the three-tier fallback;
 - the alarm monitor fields and acknowledge;
-- sign-in on each portal, with a pointer to the right one;
+- no-login entry, portal boundaries and optional private API sign-in;
 - the customer care layer: alerts, recovery estimate, reports to the NOC, credit rule, and the Care Concierge;
 - maps and signal: site geography, per-metric quality bands, the customer map radius and hidden fields, serving tower from the radio model, the Signal Analyst number guard, and ops endpoints refusing a customer login;
 - the live agent audit script, run against a scripted stand-in;
 - the verifier (playbook coverage, fact lookup, made-up numbers and unsupported claims refused, escalation after 3 refusals), the field-evidence pause and resume, root-cause sign-off and dispute;
 - the living plan, one tool per turn, and resuming after an API failure at the investigate and plan steps, by button and automatically;
-- the voice agent: WAV/PCM decoding, continuous playback, conversation references, draft revisions, session isolation, expiry, request retries and confirmation; plus per-agent reasoning effort;
+- the voice agent: browser speech output contract, conversation references, draft revisions, session isolation, expiry, request retries and confirmation; plus per-agent reasoning effort;
 - help and support (`tests/test_support.py`, 42 tests): form validation field by field, ticket IDs, saving across restarts, customers seeing only their own requests, every route refusing a signed-out user or the wrong portal, the full reply and status flow, filters and search, the 20-open-request limit, and help search and articles.
 
 The help and support screens are checked in a real browser by `node scripts\check_support_ui.js` (53 checks at phone, tablet and desktop sizes: search, empty states, form errors, sending a request, replies, the unread dot, closing, the ops desk filters, reply and status change, keyboard focus and no horizontal scrolling). It needs the app running.
@@ -531,3 +530,5 @@ The help and support screens are checked in a real browser by `node scripts\chec
 The live refresh is checked in a real browser by `node scripts\check_live_refresh.js` (12 checks: no screen rebuilds, clicks and taps that span a refresh, typed text, scroll and map kept, one request at a time on a slow backend, and the lost-connection state). It needs Node.js and Playwright and the app running; see [Setup](docs/SETUP_AND_DEPLOYMENT.md#7-tests).
 
 The voice workflow and memory have separate browser checks: `node scripts/check_voice_ui.js` and `node scripts/check_voice_memory_ui.js`. Run these against an isolated offline demo; they create fictional reports and change demo settings. The [memory guide](docs/VOICE_CONVERSATION_MEMORY.md#verification) records the tested scenarios and results.
+
+Local-only speech selection and navigation timing have focused browser checks: `node scripts/check_local_speech.js` and `node scripts/check_navigation_ui.js`. The updated [user manual source](docs/USER_MANUAL.md) explains the no-login journey.

@@ -96,13 +96,13 @@ function shell(active, inner) {
   return `<div class="shell ${ui.demoOpen ? "with-drawer" : ""}">
   <header class="appbar">
     <a class="brandmark" href="#/dashboard">${LOGO}<span>RAN Sentinel</span></a>
-    <span class="ctx">${st ? esc(st.market.name) + " · Northstar Connect" : ""}</span>
+    <span class="ctx">${st ? esc(st.market.name) + " · Simulated network" : ""}</span>
     <form class="search" id="gsearch" role="search"><span class="si">${ico("search", 15)}</span><input id="gq" type="search" placeholder="Cell, incident, ZIP or area" aria-label="Search the network" autocomplete="off"></form>
     <a class="sevbar" href="#/alarms" title="Active alarms by severity. Open the alarm monitor">${[["critical", "Crit"], ["major", "Major"], ["minor", "Minor"], ["warning", "Warn"]]
       .map(([k, l]) => `<span class="sev ${k} ${ac[k] ? "on" : ""}"><b>${ac[k] ?? 0}</b>${l}</span>`).join("")}</a>
     <div class="who">${st ? (st.offline ? chip("Offline rules engine", "warn") : chip("Meta Model API", "brand")) : ""}
       <span class="mono clock" title="Simulated network time">${st ? hhmm(st.sim_time) + " " + esc(st.market.tz_label) : ""}</span>
-      <span class="user"><span class="av" aria-hidden="true">SC</span><span class="nm">Sarah Chen</span></span><button id="logout" class="ghost">Sign out</button></div>
+      <span class="user"><span class="av" aria-hidden="true">SC</span><span class="nm">Sarah Chen</span></span><button id="logout" class="ghost">Leave demo</button></div>
   </header>
   <nav class="rail" aria-label="Modules">${NAV.map(([g, items]) => `<div class="grp"><span class="gl">${g}</span>${items.map(([k, l, i]) =>
     `<a href="#/${k}" class="${active === k ? "on" : ""}" ${active === k ? 'aria-current="page"' : ""} title="${l}">${ico(i)}<span class="tx">${l}</span>${badge(k)}</a>`).join("")}</div>`).join("")}
@@ -570,25 +570,19 @@ function renderLogin() {
   app.innerHTML = `<div class="login"><div class="form">
     <div class="brandmark">${LOGO}<span>RAN Sentinel</span></div>
     <p class="tag">Network investigation and reliability for Northstar Connect engineers.</p>
-    <form id="f" class="grid" style="gap:12px">
-      <div class="field"><label for="email">Work email</label><input id="email" type="email" autocomplete="username" value="ops@northstar.demo" required></div>
-      <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" placeholder="From your .env file" required></div>
-      <div id="err" class="err" hidden></div>
-      <button class="btn primary" type="submit">Sign in to Operations</button>
-    </form>
+    <p class="tag">Open a sample shift with 36 simulated LTE cells. No account, password or API key is needed.</p>
+    <button class="btn primary" id="demo-start">Explore engineer demo</button>
+    <p id="err" class="err" hidden></p>
     <footer>Demo system with simulated network data. Customer view: <a href="/connect/">Northstar Connect</a></footer></div>
     <div class="art"><svg viewBox="0 0 600 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${loginArt()}</svg>
       <div class="cap"><b>Detect, investigate, prove it's safe, then act.</b>Every AI step is checked by fixed safety rules and recorded in the ledger. Nothing changes on the network without an engineer's approval.</div></div></div>`;
-  document.getElementById("f").onsubmit = async (e) => {
-    e.preventDefault();
-    const err = document.getElementById("err");
+  document.getElementById("demo-start").onclick = async (e) => {
+    const button = e.currentTarget, err = document.getElementById("err");
+    button.disabled = true;
     try {
-      await api("/api/login", { body: { email: document.getElementById("email").value, password: document.getElementById("pw").value, portal: "ops" } });
+      await api("/api/demo/start", { body: { portal: "ops" } });
       location.hash = "#/dashboard";
-    } catch (x) {
-      err.hidden = false;
-      err.innerHTML = esc(x.message) + (x.portal === "connect" ? ` <a href="/connect/">Open Northstar Connect</a>` : "");
-    }
+    } catch (x) { err.hidden = false; err.textContent = x.message; button.disabled = false; }
   };
 }
 function loginArt() {

@@ -162,7 +162,7 @@ Every step is written to the append-only ledger (`store.log`).
 - **Real speech:** voice was verified with a generated test tone, which confirms the format. Transcription accuracy on real speech has not been measured.
 - **Antenna photos:** SAM 3.1 returned 0 boxes on the generated test image, which contains no antenna. Detection quality on real site photos has not been measured.
 - **Analyst support labels:** support levels (strong, moderate, weak, none) describe evidence strength. They are not calibrated probabilities.
-- **Concierge state:** history is kept in the browser (the last 6 turns are sent). Server-side care state is in memory and is lost on restart.
+- **Conversation state:** the Ask voice/typed workflow keeps 12 recent messages, bounded older notes and one pending proposal in its server session. Refresh restores it; 30 minutes of inactivity or a server restart clears it. The separate legacy text-concierge endpoint accepts up to six browser-supplied turns. See [voice conversation memory](VOICE_CONVERSATION_MEMORY.md).
 
 ## 8. How to test
 

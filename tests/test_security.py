@@ -12,6 +12,8 @@ from test_field_evidence import _paused
 def client(sentinel, monkeypatch):
     monkeypatch.setattr(main, "sentinel", sentinel)
     main._failed.clear()
+    monkeypatch.setattr(main.settings, "ops_password", "test-staff-secret")
+    monkeypatch.setattr(main.settings, "customer_password", "test-member-secret")
     return TestClient(main.app)
 
 

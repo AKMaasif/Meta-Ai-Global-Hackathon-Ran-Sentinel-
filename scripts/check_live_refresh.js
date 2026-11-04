@@ -1,20 +1,8 @@
-const fs = require("fs"), path = require("path");
 let chromium;
 try { ({ chromium } = require("playwright")); } catch {
   console.error("Playwright is not installed. In the project folder run:\n  npm i --no-save playwright\n  npx playwright install chromium\nthen run this script again.");
   process.exit(2);
 }
-const fromEnvFile = (() => {
-  try {
-    const out = {};
-    for (const line of fs.readFileSync(path.join(__dirname, "..", ".env"), "utf8").split(/\r?\n/)) {
-      const m = line.match(/^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/);
-      if (m) out[m[1]] = m[2].replace(/^(["'])(.*)\1$/, "$2");
-    }
-    return out;
-  } catch { return {}; }
-})();
-const setting = (k) => process.env[k] || fromEnvFile[k] || "";
 const fail = (msg) => { console.error(msg); process.exit(2); };
 const BASE = process.env.BASE_URL || "http://127.0.0.1:8000";
 const results = [];
@@ -33,15 +21,13 @@ async function churn(page, ms) {
 
 (async () => {
   try { await fetch(`${BASE}/ops/`); } catch { fail(`The app is not reachable at ${BASE}. Start it first with: py run.py`); }
-  if (!setting("OPS_PASSWORD") || !setting("CUSTOMER_PASSWORD")) fail("OPS_PASSWORD and CUSTOMER_PASSWORD were not found in the environment or in .env.");
   const b = await chromium.launch();
   const errors = [];
   const p = await (await b.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
   p.on("pageerror", (e) => errors.push("ops: " + e.message));
-  await p.goto(`${BASE}/ops/#/login`); await p.waitForSelector("#email");
-  if (setting("OPS_EMAIL")) await p.fill("#email", setting("OPS_EMAIL"));
-  await p.fill("#pw", setting("OPS_PASSWORD")); await p.click(".form button"); await p.waitForTimeout(3500);
-  if (!(await p.locator(".shell").count())) { await b.close(); fail("Sign-in to the operations console failed. Check OPS_EMAIL and OPS_PASSWORD in .env, and restart the app after changing them."); }
+  await p.goto(`${BASE}/ops/#/login`);
+  await p.click("#demo-start"); await p.waitForTimeout(1500);
+  if (!(await p.locator(".shell").count())) { await b.close(); fail("Demo entry to the operations console failed. Check the server log."); }
   if (!(await p.locator("tr.click[data-inc]").count())) {
     console.log("No open incident yet: creating a hardware fault on SEA-RAN-001 through Demo controls...");
     const r = await p.request.post(`${BASE}/api/demo/inject`, { data: { cell_id: "SEA-RAN-001", fault_type: "hardware", severity: 3 } });
@@ -79,10 +65,9 @@ async function churn(page, ms) {
 
   const q = await (await b.newContext({ viewport: { width: 390, height: 844 } })).newPage();
   q.on("pageerror", (e) => errors.push("connect: " + e.message));
-  await q.goto(`${BASE}/connect/#/login`); await q.waitForSelector("#em");
-  if (setting("CUSTOMER_EMAIL")) await q.fill("#em", setting("CUSTOMER_EMAIL"));
-  await q.fill("#pw", setting("CUSTOMER_PASSWORD")); await q.click("#f button"); await q.waitForTimeout(1500);
-  if (!(await q.locator(".app").count())) { await b.close(); fail("Sign-in to the customer app failed. Check CUSTOMER_EMAIL and CUSTOMER_PASSWORD in .env."); }
+  await q.goto(`${BASE}/connect/#/login`);
+  await q.click("#demo-start"); await q.waitForTimeout(1500);
+  if (!(await q.locator(".app").count())) { await b.close(); fail("Demo entry to the customer app failed. Check that this server includes the no-login demo endpoint."); }
   await q.goto(`${BASE}/connect/#/network/home`); await q.waitForTimeout(3000);
   await q.evaluate(() => scrollTo(0, 900)); await q.waitForTimeout(200);
   const d = await churn(q, 11000);

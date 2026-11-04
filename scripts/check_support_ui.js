@@ -1,21 +1,8 @@
-const fs = require("fs"), path = require("path");
 let chromium;
 try { ({ chromium } = require("playwright")); } catch {
   console.error("Playwright is not installed. In the project folder run:\n  npm i --no-save playwright\n  npx playwright install chromium\nthen run this script again.");
   process.exit(2);
 }
-const fromEnvFile = (() => {
-  try {
-    const out = {};
-    for (const line of fs.readFileSync(path.join(__dirname, "..", ".env"), "utf8").split(/\r?\n/)) {
-      const m = line.match(/^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/);
-      if (m) out[m[1]] = m[2].replace(/^(["'])(.*)\1$/, "$2");
-    }
-    return out;
-  } catch { return {}; }
-})();
-const DEFAULTS = { OPS_EMAIL: "ops@northstar.demo", OPS_PASSWORD: "sentinel-demo", CUSTOMER_EMAIL: "customer@northstar.demo", CUSTOMER_PASSWORD: "connect-demo" };
-const setting = (k) => process.env[k] || fromEnvFile[k] || DEFAULTS[k] || "";
 const BASE = process.env.BASE_URL || "http://127.0.0.1:8000";
 const results = [];
 const check = (name, ok, detail) => results.push({ name, ok: !!ok, detail });
@@ -34,10 +21,10 @@ async function customer(b, vp) {
   const ctx = await b.newContext({ viewport: { width: w, height: h } });
   const p = await ctx.newPage();
   const errors = []; p.on("pageerror", (e) => errors.push(e.message));
-  await p.goto(`${BASE}/connect/#/login`); await p.waitForSelector("#em");
-  await p.fill("#em", setting("CUSTOMER_EMAIL")); await p.fill("#pw", setting("CUSTOMER_PASSWORD")); await p.click("#f button");
+  await p.goto(`${BASE}/connect/#/login`);
+  await p.click("#demo-start"); await p.waitForTimeout(1500);
   await p.waitForTimeout(1500);
-  if (!(await p.locator(".tabbar").count())) { check(`${label}: customer sign-in`, false, "check CUSTOMER_EMAIL and CUSTOMER_PASSWORD"); await ctx.close(); return null; }
+  if (!(await p.locator(".tabbar").count())) { check(`${label}: customer demo entry`, false, "open demo entry failed"); await ctx.close(); return null; }
   await p.goto(`${BASE}/connect/#/help`); await p.waitForSelector(".helphero");
   check(`${label}: Help center loads with topics and popular questions`, (await p.locator(".cat").count()) >= 5 && (await p.locator("details.faq").count()) >= 3);
   check(`${label}: Help center has no horizontal scroll`, (await overflow(p)) <= 1, `${await overflow(p)} px`);
@@ -81,8 +68,8 @@ async function customer(b, vp) {
   const errors = [];
   const o = await (await b.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
   o.on("pageerror", (e) => errors.push(e.message));
-  await o.goto(`${BASE}/ops/#/login`); await o.waitForSelector("#email");
-  await o.fill("#email", setting("OPS_EMAIL")); await o.fill("#pw", setting("OPS_PASSWORD")); await o.click(".form button"); await o.waitForTimeout(2500);
+  await o.goto(`${BASE}/ops/#/login`);
+  await o.click("#demo-start"); await o.waitForTimeout(1500);
   if (made.length) {
     const [, { p, id }] = made[made.length - 1];
     await o.goto(`${BASE}/ops/#/support`); await o.waitForTimeout(2000);

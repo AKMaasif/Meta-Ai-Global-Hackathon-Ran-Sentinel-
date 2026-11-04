@@ -145,7 +145,7 @@ const UI = (() => {
         return tick(gen).catch(onFatal);
       },
       now() { return tick(gen).catch(onFatal); },
-      stop() { gen++; if (ctrl) ctrl.abort(); clearTimeout(timer); fn = null; },
+      stop() { gen++; if (ctrl) ctrl.abort(); ctrl = null; liveSignal = null; clearTimeout(timer); fn = null; running = false; again = false; },
       get lastOk() { return lastOk; },
     };
   }

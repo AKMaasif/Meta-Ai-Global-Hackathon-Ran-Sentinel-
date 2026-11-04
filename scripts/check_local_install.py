@@ -22,9 +22,9 @@ def main():
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0))
             port = probe.getsockname()[1]
-        env = dict(os.environ, MODEL_API_KEY="", GOOGLE_API_KEY="", FIREWORKS_API_KEY="", MAVERIC_URL="",
-                   SIM_TICK_SECONDS="0.5", OPS_EMAIL="ops@northstar.demo", OPS_PASSWORD="sentinel-demo",
-                   CUSTOMER_EMAIL="customer@northstar.demo", CUSTOMER_PASSWORD="connect-demo", PYTHONIOENCODING="utf-8")
+        env = dict(os.environ, MODEL_API_KEY="", FIREWORKS_API_KEY="", MAVERIC_URL="",
+                   SIM_TICK_SECONDS="0.5", OPS_EMAIL="", OPS_PASSWORD="",
+                   CUSTOMER_EMAIL="", CUSTOMER_PASSWORD="", PYTHONIOENCODING="utf-8")
         base = f"http://127.0.0.1:{port}"
         with (temp / "server.log").open("w+", encoding="utf-8") as log:
             proc = subprocess.Popen([sys.executable, str(temp / "run.py"), "--port", str(port)], cwd=temp,
@@ -43,23 +43,22 @@ def main():
                         if time.monotonic() > until:
                             raise RuntimeError("Server did not become ready within 90 seconds")
                         time.sleep(.5)
-                    for url in ("/ops/", "/connect/", "/ops/app.js", "/connect/app.js", "/shared/ui.js",
+                    for url in ("/ops/", "/connect/", "/ops/app.js", "/connect/app.js", "/shared/ui.js", "/shared/local-speech.js",
                                 "/shared/base.css", "/shared/geomap.js", "/shared/vendor/leaflet/leaflet.js",
                                 "/shared/vendor/us-states-10m.json"):
                         r = ops.get(url)
                         assert r.status_code == 200 and r.content, url
                     print("PASS: both portals and bundled static assets")
                     assert ops.get("/api/state").status_code == 401
-                    for client, portal, email, pw in ((ops, "ops", "ops@northstar.demo", "sentinel-demo"),
-                                                     (customer, "connect", "customer@northstar.demo", "connect-demo")):
-                        r = client.post("/api/login", json={"portal": portal, "email": email, "password": pw})
-                        assert r.status_code == 200, (portal, r.text)
+                    for client, portal in ((ops, "ops"), (customer, "connect")):
+                        r = client.post("/api/demo/start", json={"portal": portal})
+                        assert r.status_code == 200 and r.json()["demo"], (portal, r.text)
                     state = ops.get("/api/state").json()
                     assert state["offline"] and len(state["cells"]) == 36
                     assert customer.get("/api/state").status_code == 401
                     for url in ("/api/care/home", "/api/care/network", "/api/care/account", "/api/care/map", "/api/care/signal"):
                         assert customer.get(url).status_code == 200, url
-                    print("PASS: default logins, offline mode, 36 cells and customer access boundary")
+                    print("PASS: no-login demos, offline mode, 36 cells and customer access boundary")
                     before = state["tick"]
                     assert ops.post("/api/demo/inject", json={"cell_id": "SEA-RAN-001", "fault_type": "hardware", "severity": 2}).status_code == 200
                     until = time.monotonic() + 60

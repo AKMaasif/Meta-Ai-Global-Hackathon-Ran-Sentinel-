@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import json
 import secrets
 import statistics
@@ -24,13 +23,12 @@ from .voice_memory import VoiceConversation
 from .config import ROOT, settings
 from .detection import DETECTOR_VERSION
 from .orchestrator import OPEN_STATES, Sentinel
-from .providers import GeminiSpeech, ProviderError
+from .providers import ProviderError
 from .safety import ACTIONS, READ_ONLY_CHECKS
 from .simulator import FAULT_TYPES, KPI_NAMES, KPI_UNITS, MARKET
 
 sentinel: Sentinel | None = None
 sessions: dict[str, dict] = {}
-speech = GeminiSpeech(settings)
 _runner = {"paused": False, "stop": False}
 
 
@@ -84,13 +82,32 @@ class Login(BaseModel):
     portal: Literal["ops", "connect"]
 
 
+class DemoStart(BaseModel):
+    portal: Literal["ops", "connect"]
+
+
+def _session(response: Response, portal: str, email: str, demo: bool = False):
+    token = secrets.token_urlsafe(24)
+    sessions[token] = {"email": email, "portal": portal, "demo": demo}
+    response.set_cookie(f"rs_{portal}", token, httponly=True, samesite="lax")
+    return {"ok": True, "demo": demo, "name": "Sarah Chen" if portal == "ops" else "Northstar customer"}
+
+
+@app.post("/api/demo/start")
+def demo_start(body: DemoStart, request: Request, response: Response):
+    previous = request.cookies.get(f"rs_{body.portal}", "")
+    sessions.pop(previous, None)
+    owner = settings.ops_email if body.portal == "ops" else settings.customer_email
+    return _session(response, body.portal, owner, demo=True)
+
+
 MAX_FAILED, LOCK_SECONDS = 5, 300
 _failed: dict[str, list[float]] = {}
 
 
 def _matches(body: Login, portal: str) -> bool:
     email, pw = (settings.ops_email, settings.ops_password) if portal == "ops" else (settings.customer_email, settings.customer_password)
-    return secrets.compare_digest(body.email.lower(), email.lower()) and secrets.compare_digest(body.password, pw)
+    return bool(email and pw) and secrets.compare_digest(body.email.lower(), email.lower()) and secrets.compare_digest(body.password, pw)
 
 
 @app.post("/api/login")
@@ -109,10 +126,7 @@ def login(body: Login, request: Request, response: Response):
                 if other == "connect" else "This is an engineer account. Engineers sign in to RAN Sentinel Operations.")})
         _failed[ip].append(now)
         raise HTTPException(401, "Email or password is incorrect.")
-    token = secrets.token_urlsafe(24)
-    sessions[token] = {"email": body.email, "portal": body.portal}
-    response.set_cookie(f"rs_{body.portal}", token, httponly=True, samesite="lax")
-    return {"ok": True, "name": "Sarah Chen" if body.portal == "ops" else "Northstar customer"}
+    return _session(response, body.portal, body.email)
 
 
 @app.post("/api/logout")
@@ -126,14 +140,14 @@ def logout(request: Request, response: Response):
 def ops_user(request: Request) -> dict:
     s = sessions.get(request.cookies.get("rs_ops", ""))
     if not s or s.get("portal") != "ops":
-        raise HTTPException(401, "Sign in to Operations first.")
+        raise HTTPException(401, "Open the engineer demo first.")
     return s
 
 
 def customer_user(request: Request) -> dict:
     s = sessions.get(request.cookies.get("rs_connect", ""))
     if not s or s.get("portal") != "connect":
-        raise HTTPException(401, "Sign in first.")
+        raise HTTPException(401, "Open the customer demo first.")
     return s
 
 
@@ -734,7 +748,7 @@ def voice_memory_clear(user: dict = Depends(customer_user)):
 def voice_status(_: dict = Depends(customer_user)):
     return {"listen": None if sentinel.provider.offline else settings.voice_model,
             "think": "rules" if sentinel.provider.offline else settings.primary_model,
-            "speak": settings.tts_model if speech.enabled else "browser", "voice": settings.tts_voice}
+            "speak": "browser", "voice": "local system voice"}
 
 
 @app.post("/api/care/voice/turn")
@@ -747,29 +761,7 @@ async def voice_turn(body: VoiceTurn, _: dict = Depends(customer_user)):
     except ValueError as e:
         raise HTTPException(409, str(e))
     r["audio"], r["voice_by"] = None, "browser"
-    if body.speak and speech.enabled:
-        try:
-            sp = await run_in_threadpool(speech.speak, r["answer"])
-            r["audio"], r["voice_by"] = "data:audio/wav;base64," + base64.b64encode(sp["wav"]).decode(), sp["model"]
-        except ProviderError as e:
-            r["voice_note"] = str(e)[:160]
     return r
-
-
-class SpeakReq(BaseModel):
-    text: str
-
-
-@app.post("/api/care/voice/speak")
-async def voice_speak(body: SpeakReq, _: dict = Depends(customer_user)):
-    text = body.text.strip()[:1200]
-    if not text or not speech.enabled:
-        raise HTTPException(503, "Gemini voice is not set up; the browser voice is used instead.")
-    try:
-        sp = await run_in_threadpool(speech.speak, text)
-    except ProviderError as e:
-        raise HTTPException(503, f"Voice unavailable: {str(e)[:160]}")
-    return Response(sp["wav"], media_type="audio/wav", headers={"X-Voice-Model": sp["model"], "Cache-Control": "no-store"})
 
 
 class Confirm(BaseModel):

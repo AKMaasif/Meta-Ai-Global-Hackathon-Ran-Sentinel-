@@ -9,16 +9,17 @@ A missing or unknown session returns `401`. FastAPI request models (pydantic) re
 
 Error bodies use FastAPI's `{"detail": ...}`. The front ends read `detail.message` or a string `detail` (`UI.api`).
 
-## 1. Static files and sign-in
+## 1. Static files and demo entry
 
 | Method and route | Auth | Purpose | Request | Response and errors |
 | --- | --- | --- | --- | --- |
 | `GET /` | none | redirect | — | 307 to `/ops/` |
 | `GET /ops/*`, `/connect/*`, `/shared/*` | none | static front ends, maps, vendor libraries | — | files |
+| `POST /api/demo/start` | none | open sample-data demo | `{portal: "ops" or "connect"}` | `{ok, demo, name}` and a role-scoped HttpOnly, SameSite=Lax cookie; replaces this portal's previous session |
 | `POST /api/login` | none | sign in to one portal | `{email, password, portal: "ops" or "connect"}` | `{ok, name}` and sets an `rs_<portal>` cookie (HttpOnly, SameSite=Lax). `401 "Email or password is incorrect."`. `403 {portal, message}` when the account belongs to the other portal |
 | `POST /api/logout` | none | end both sessions | `{}` | `{ok}`; deletes both cookies |
 
-Credentials are compared with `secrets.compare_digest` against `OPS_EMAIL` / `OPS_PASSWORD` or `CUSTOMER_EMAIL` / `CUSTOMER_PASSWORD`.
+Demo entry needs no credentials. The optional legacy private login is disabled for empty passwords; if configured, credentials are compared with `secrets.compare_digest` against `OPS_EMAIL` / `OPS_PASSWORD` or `CUSTOMER_EMAIL` / `CUSTOMER_PASSWORD`.
 
 ## 2. Operations API (all ops)
 

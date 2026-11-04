@@ -3,6 +3,7 @@ const app = document.getElementById("app");
 let toastTimer = null, lastTop = null, supportUnread = 0;
 const chat = [];
 const ui = { place: "home", report: { place: "home", symptom: "no_service" } };
+const currentPage = () => (location.hash.replace(/^#\/?/, "") || "home").split("/")[0];
 
 const I = {
   home: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
@@ -51,7 +52,7 @@ function shell(active, inner, head) {
   const h = head || {};
   return `<div class="app">
     <header class="topbar">${h.back ? `<a class="back" href="${h.back}" aria-label="Back">‹</a>` : `<a class="avatar" href="#/account" aria-label="Account">JR</a>`}
-      <div class="who"><b>${esc(h.title || "Northstar Connect")}</b>${h.sub ? `<span>${esc(h.sub)}</span>` : ""}</div>
+      <div class="who"><b>${esc(h.title || "Northstar Connect")}</b>${h.sub ? `<span>${esc(h.sub)}</span>` : `<span>Sample data · fictional carrier</span>`}</div>
       <a class="iconbtn" href="#/notifications" aria-label="Notifications">${ic("bell", 22)}<span id="badge"></span></a></header>
     ${inner}
     <nav class="tabbar" aria-label="Main">${[["home", "Home", "home"], ["network", "Network", "net"], ["account", "Account", "user"], ["bill", "Bill", "bill"], ["help", "Help", "help"]]
@@ -85,6 +86,7 @@ function route() {
   if (p === "login") { poll.stop(); voice.clearLocal(); return login(); }
   const fn = pages[p] || home;
   if (["home", "network", "notifications", "bill"].includes(p) || (p === "support" && arg && arg !== "new") || !pages[p]) return poll.start(fn, 5000, fatal);
+  poll.stop();
   guard(fn);
   poll.start(async () => notice(await api("/api/care/home")), 8000, fatal);
 }
@@ -92,14 +94,14 @@ window.addEventListener("hashchange", () => { window.scrollTo(0, 0); route(); })
 function login() {
   app.innerHTML = `<div class="login"><div class="brandmark"><span class="mk">NC</span>Northstar Connect</div>
     <p class="muted" style="text-align:center">Your account, your network and an AI care team, in one app.</p>
-    <form id="f" class="grid" style="gap:12px"><div class="field"><label for="em">Email</label><input id="em" type="email" value="customer@northstar.demo" autocomplete="username" required></div>
-    <div class="field"><label for="pw">Password</label><input id="pw" type="password" placeholder="CUSTOMER_PASSWORD from your .env file" autocomplete="current-password" required></div>
-    <p id="err" class="err" hidden></p><button class="b block">Sign in</button></form>
+    <p class="muted-note">Explore a fictional customer's account and sample network. No account, password or API key is needed.</p>
+    <button class="b block" id="demo-start">Explore customer demo</button><p id="err" class="err" hidden></p>
     <p class="muted-note">Demo app for a fictional carrier. No real account, payment or network.<br>Engineers: <a href="/ops/">RAN Sentinel Operations</a></p></div>`;
-  document.getElementById("f").onsubmit = async (e) => {
-    e.preventDefault();
-    try { await api("/api/login", { body: { email: document.getElementById("em").value, password: document.getElementById("pw").value, portal: "connect" } }); location.hash = "#/home"; }
-    catch (x) { const err = document.getElementById("err"); err.hidden = false; err.innerHTML = esc(x.message) + (x.portal === "ops" ? ` <a href="/ops/">Open RAN Sentinel Operations</a>` : ""); }
+  document.getElementById("demo-start").onclick = async (e) => {
+    const button = e.currentTarget;
+    button.disabled = true;
+    try { await api("/api/demo/start", { body: { portal: "connect" } }); location.hash = "#/home"; }
+    catch (x) { const err = document.getElementById("err"); err.hidden = false; err.textContent = x.message; button.disabled = false; }
   };
 }
 
@@ -196,6 +198,7 @@ async function network(arg) {
   const pid = ui.place;
   const [n, mp, sg] = await Promise.all([api("/api/care/network"), api("/api/care/map?place=" + encodeURIComponent(pid)).catch(() => null),
     api("/api/care/signal?place=" + encodeURIComponent(pid)).catch(() => null)]);
+  if (currentPage() !== "network") return;
   const p = n.places.find((x) => x.id === ui.place) || n.places[0];
   keepScroll(() => {
     view.html = shell("network", `<div class="page" style="padding-top:12px">
@@ -309,6 +312,7 @@ function customerMap(mp) {
 
 async function report() {
   const n = await api("/api/care/network");
+  if (currentPage() !== "report") return;
   const r = ui.report;
   view.html = shell("network", `<div class="page" style="padding-top:12px">
     <section class="card"><h2>Report a problem</h2><p class="small muted">We check the network at that place first. If engineers are already fixing it, your report is added to their repair as evidence. If not, we help you check your phone.</p>
@@ -356,7 +360,7 @@ async function account() {
     <section class="card"><p class="small muted">We watch the network at these places and tell you first when something is wrong.</p><div class="list">${d.places.map((p) => `<div class="li"><span><b>${esc(p.label)}</b></span>
       <select class="sel" data-place="${p.id}" aria-label="${esc(p.label)} neighborhood">${d.areas.map((x) => `<option value="${x.zip}" ${x.zip === p.zip ? "selected" : ""}>${esc(x.area)} ${x.zip}</option>`).join("")}</select></div>`).join("")}</div></section>
     <section class="card"><h2>AI and your data</h2><p class="small">Northstar's AI care team runs on Meta's Muse models. It only reads your own account and the network updates our engineers have published. It suggests; you confirm every change. We don't send your data to model versions that train on it.</p></section>
-    <button class="b ghost block" id="out">Sign out</button>
+    <button class="b ghost block" id="out">Leave demo</button>
     <p class="muted-note">Demo account for a fictional carrier.</p></div>`, { title: "Account" });
   guard(async () => notice(await api("/api/care/home")));
   document.querySelectorAll("[data-pref]").forEach((t) => (t.onchange = async () => { await api("/api/care/prefs", { body: { key: t.dataset.pref, value: t.checked } }); toast("Saved", `${d.settings[t.dataset.pref]} ${t.checked ? "on" : "off"}.`); }));
@@ -414,7 +418,7 @@ async function notifications() {
 const LAYERS = [
   ["Listen", "Muse Voice Transcribe", "Turns a spoken question into text. You check it before it's sent."],
   ["Care Concierge", "Muse Spark 1.3 (1.2, 1.1 as backup)", "Plans the answer and calls tools that see only your account and your places. In a voice conversation it also runs the app for you."],
-  ["Speak", "Gemini TTS (your browser's voice as backup)", "Reads answers aloud in a natural voice. It only gets the answer text, never your account."],
+  ["Speak", "Installed browser / OS voice", "Reads the reply with a local English voice on this device. If none is available, the written reply stays visible."],
   ["Network Explainer", "Muse Spark 1.3", "Writes updates in plain words from facts engineers have approved."],
   ["Recovery Estimator", "Fixed rules, no AI", "Estimates when service is back from the repair stage and typical repair times."],
   ["Personal Advisor", "Fixed rules, no AI", "Suggests what helps you now, like Wi-Fi Calling or Data Saver."],
@@ -716,7 +720,7 @@ const voice = (() => {
     [/open|go to|show|take me/i, "Opening the page"], [/^(yes|yeah|yep|sure|ok|okay|go ahead|do it|confirm|send it)/i, "Doing what you said yes to"],
     [/wi-?fi|data saver|setting/i, "Preparing the setting change"]];
   let root = null;
-  const page = () => (location.hash.replace(/^#\/?/, "") || "home").split("/")[0];
+  const page = currentPage;
   const MIC24 = UI.MIC.replace('width="14" height="14"', 'width="20" height="20"');
 
   function mount() {
@@ -730,6 +734,8 @@ const voice = (() => {
         <button class="va-orbbtn" id="vaorb" aria-label="Talk"><span class="orb" id="vaorbi"><i></i></span></button>
         <div class="va-say" id="vasay" aria-live="polite"></div>
         <div class="va-status" id="vastatus" aria-live="polite"></div>
+        <div class="va-voice"><label for="vavoice">Reply voice</label><select id="vavoice"><option value="">Finding local voices...</option></select></div>
+        <p class="va-voice-note" id="vavoicenote">Replies use an installed local voice. Written answers are always available.</p>
         <ol class="va-flow" id="vaflow"></ol>
         <div class="va-acts" id="vaacts"></div>
         <form class="va-ask" id="vaask"><span class="va-clip">${ic("spark", 16)}</span><input id="vaq" placeholder="Ask me anything" aria-label="Ask the assistant" autocomplete="off">
@@ -749,7 +755,20 @@ const voice = (() => {
     };
     $("vaask").onsubmit = (e) => { e.preventDefault(); const q = $("vaq").value.trim(); $("vaq").value = ""; if (q) typed(q); };
     $("vachips").querySelectorAll("button").forEach((b) => (b.onclick = () => typed(b.textContent)));
-    S.status = () => api("/api/care/voice/status").then((v) => { S.browserVoice = v.speak === "browser"; $("vamodel").textContent = `${v.think === "rules" ? "Offline rules" : "Meta Muse Spark"} · ${v.speak === "browser" ? "browser voice" : "Gemini voice"}`; }).catch(() => {});
+    let voiceChosen = false;
+    $("vavoice").onchange = () => {
+      voiceChosen = true;
+      if (S.state === "speaking") { quiet(); set(S.on ? "listening" : "idle"); }
+    };
+    const refreshVoices = () => {
+      const select = $("vavoice"), chosen = select.value;
+      select.replaceChildren(new Option("Text only", "off"), ...LocalSpeech.voices().map((v) => new Option(`${v.name} (${v.lang})`, v.voiceURI)));
+      if (voiceChosen && [...select.options].some((v) => v.value === chosen)) select.value = chosen;
+      else select.selectedIndex = select.options.length > 1 ? 1 : 0;
+    };
+    LocalSpeech.subscribe(refreshVoices);
+    refreshVoices();
+    S.status = () => api("/api/care/voice/status").then((v) => { $("vamodel").textContent = `${v.think === "rules" ? "Offline rules" : "Meta Muse Spark"} · local device voice`; }).catch(() => {});
   }
   function paint() {
     if (!root) return;
@@ -828,11 +847,7 @@ const voice = (() => {
   }
   function quiet() {
     S.speech = (S.speech || 0) + 1;
-    if (S.ttsRequest) { S.ttsRequest.abort(); S.ttsRequest = null; }
-    if (S.finishPlayback) S.finishPlayback();
-    if (S.finishBrowser) S.finishBrowser();
-    if (S.audio) { S.audio.pause(); S.audio = null; }
-    if (window.speechSynthesis) speechSynthesis.cancel();
+    LocalSpeech.cancel();
   }
 
   async function hear() {
@@ -865,7 +880,7 @@ const voice = (() => {
     set("thinking");
     if (S.restoring) await S.restoring;
     S.tok = (S.tok || 0) + 1;
-    if (S.state === "listening" && S.mic) { S.mic.cancel(); S.mic = null; }
+    if (S.mic) { S.mic.cancel(); S.mic = null; }
     quiet();
     const tok = S.tok;
     S.flow = []; await ask(q);
@@ -908,57 +923,10 @@ const voice = (() => {
   async function speak(text) {
     set("speaking");
     const id = (S.speech = (S.speech || 0) + 1);
-    const current = () => id === S.speech && S.state === "speaking";
-    const fallback = () => new Promise((resolve) => browserSay(text, resolve));
-    if (S.browserVoice) { await fallback(); return done(id); }
-    const controller = new AbortController();
-    S.ttsRequest = controller;
-    const timeout = setTimeout(() => controller.abort(), 65000);
-    try {
-      // Generate the complete reply once: sentence clips create repeated endings.
-      const r = await fetch("/api/care/voice/speak", { method: "POST", headers: { "Content-Type": "application/json" },
-        credentials: "same-origin", signal: controller.signal, body: JSON.stringify({ text }) });
-      if (!r.ok) throw new Error("Speech temporarily unavailable");
-      const clip = await r.blob();
-      if (!current()) return;
-      await new Promise((resolve) => {
-        const url = URL.createObjectURL(clip), audio = new Audio(url);
-        let finished = false;
-        const finish = () => {
-          if (finished) return;
-          finished = true; clearTimeout(guard);
-          audio.onended = audio.onerror = null; audio.pause();
-          URL.revokeObjectURL(url);
-          if (S.audio === audio) S.audio = null;
-          if (S.finishPlayback === finish) S.finishPlayback = null;
-          resolve();
-        };
-        const guard = setTimeout(finish, 120000);
-        S.audio = audio; S.finishPlayback = finish;
-        audio.onended = finish;
-        audio.onerror = () => { S.answer = text + " (Audio could not play; you can read the reply.)"; finish(); paint(); };
-        audio.play().catch(() => { if (current()) { S.answer = text + " (Tap the microphone to enable audio, or read the reply.)"; paint(); } finish(); });
-      });
-    } catch (e) {
-      if (current()) await fallback();
-    } finally {
-      clearTimeout(timeout);
-      if (S.ttsRequest === controller) S.ttsRequest = null;
-    }
-    done(id);
-  }
-  function done(id) { if (id === S.speech && S.state === "speaking") set(S.on ? "listening" : "idle"); }
-  function browserSay(text, fin) {
-    if (!window.speechSynthesis) return fin();
-    let over = false;
-    const once = () => { if (!over) { over = true; clearTimeout(guard); if (S.finishBrowser === once) S.finishBrowser = null; fin(); } };
-    S.finishBrowser = once;
-    const guard = setTimeout(() => { speechSynthesis.cancel(); once(); }, 4000 + text.split(/\s+/).length * 700);
-    const u = new SpeechSynthesisUtterance(text);
-    const vs = speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en"));
-    u.voice = vs.find((v) => /natural|online|google us/i.test(v.name)) || vs[0] || null;
-    u.rate = 1.02; u.onend = u.onerror = once;
-    speechSynthesis.speak(u);
+    const outcome = await LocalSpeech.say(text, { voiceURI: root.querySelector("#vavoice").value });
+    if (id !== S.speech || S.state !== "speaking") return;
+    root.querySelector("#vavoicenote").textContent = outcome.note || "Replies use an installed local voice. Written answers are always available.";
+    set(S.on ? "listening" : "idle");
   }
 
   return { show: (yes) => { mount(); root.hidden = !yes; if (yes && !S.bootstrapped) { S.bootstrapped = true; start(); } },

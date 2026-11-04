@@ -71,7 +71,7 @@ Each app creates one poller: `poll` in ops `live()`, and `poll` in the customer 
 ```
 poll.start(fn, everyMs, onFatal)   // on navigation: new page, cancel the old one
 poll.now()                         // after a user action: refresh at once
-poll.stop()                        // on the sign-in page
+poll.stop()                        // on the demo entry page
 ```
 
 - **Serial:** the next refresh is scheduled with `setTimeout` only after the current one finishes, so there is never more than one request chain per page. A `poll.now()` that arrives during a refresh is queued once and runs right after it.
@@ -81,7 +81,7 @@ poll.stop()                        // on the sign-in page
   - The last good screen stays up.
   - The next attempt backs off: 2×, 4×, 8× the interval, capped at 15 s.
   - When the browser fires `online`, the poller retries immediately.
-  - A 401 is not retried; it sends the user to the sign-in page.
+  - A 401 is not retried; it sends the user to the demo entry page.
 - **Hidden tabs:** while `document.hidden` is true, no requests are made. On `visibilitychange` back to visible, the poller refreshes at once.
 - **Pointer held down:** while a mouse button or finger is down (`pointerdown` to `pointerup`), a due refresh waits in 250 ms steps. This is a second safeguard for drags and long presses; the patching in 3.1 already keeps the touched element alive.
 - **Busy work (ops):** `paused: () => busy` holds refreshes during a photo upload, voice recording or handover write, as before.
@@ -150,6 +150,6 @@ sequenceDiagram
 
 ## 7. How to re-run the checks
 
-One-time setup in the project folder: `npm i --no-save playwright`, then `npx playwright install chromium`. With the app running (`py run.py`), run `node scripts\check_live_refresh.js` from the project folder. It reads the sign-in settings from `.env` and creates one demo fault if there is no open incident ([Setup](SETUP_AND_DEPLOYMENT.md#7-tests)).
+One-time setup in the project folder: `npm i --no-save playwright`, then `npx playwright install chromium`. With the app running (`py run.py`), run `node scripts\check_live_refresh.js` from the project folder. It opens the no-login demos and creates one demo fault if there is no open incident ([Setup](SETUP_AND_DEPLOYMENT.md#7-tests)).
 
 It prints PASS or FAIL for 12 checks and exits non-zero on any failure.

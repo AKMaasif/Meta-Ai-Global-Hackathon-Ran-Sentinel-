@@ -1,10 +1,10 @@
 # Voice conversation memory
 
-This is an extension of the [voice/audio redesign](VOICE_AGENT_REDESIGN.md). It keeps the Meta transcription → Muse Spark/tools → Gemini Kore speech pipeline, and adds server-managed conversational state. The sections below describe the implemented workflow and its limits.
+This is an extension of the [voice/audio redesign](VOICE_AGENT_REDESIGN.md). It keeps the Meta transcription → Muse Spark/tools → local browser/OS speech pipeline, and adds server-managed conversational state. The sections below describe the implemented workflow and its limits.
 
 ## State and lifetime
 
-Each authenticated customer login owns a `VoiceConversation` in its server session. Browser-provided history is ignored by the voice endpoint; it is not the source of truth.
+Each customer demo session owns a `VoiceConversation` in its server session. Browser-provided history is ignored by the voice endpoint; it is not the source of truth.
 
 The server keeps:
 
@@ -15,7 +15,7 @@ The server keeps:
 - The latest action and up to eight completed/cancelled action outcomes.
 - A bounded cache of 16 request IDs, so retrying the same turn cannot repeat an action.
 
-A page refresh can restore this state. Closing the assistant pauses the interaction without forgetting it. The New conversation button, or “start over,” clears context and unconfirmed proposals. Logout/new login and application restart do not restore the previous voice conversation. An idle timeout of 30 minutes clears memory and pending authorization on the next access. Resetting the simulator also invalidates the old conversation's proposals.
+A page refresh can restore this state. Closing the assistant pauses the interaction without forgetting it. The New conversation button, or “start over,” clears context and unconfirmed proposals. Logout/new demo session and application restart do not restore the previous voice conversation. An idle timeout of 30 minutes clears memory and pending authorization on the next access. Resetting the simulator also invalidates the old conversation's proposals.
 
 Memory is held in server RAM; it is not written to SQLite, browser storage or a long-term customer profile. There is no claim of unlimited or permanent recall.
 
@@ -38,7 +38,7 @@ flowchart TD
     I --> K
     J --> K
     K --> L[Return answer, visible draft and server memory snapshot]
-    L --> M[Existing continuous Kore speech playback]
+    L --> M[Installed local browser/OS speech]
 ```
 
 Simple referential turns are handled without a paid model round trip. For broader questions, Muse Spark receives the recent dialogue, bounded context notes and the current issue. Its instructions require fresh tool calls for current account/network facts; previous answers are not a cache of current service status.
@@ -58,7 +58,7 @@ Simple referential turns are handled without a paid model round trip. For broade
 
 ## Isolation and confirmation
 
-The demo still uses a shared fictional account and network. Voice dialogue and pending proposals are separated per authenticated login. A `ContextVar` gives the existing Care tools a session-specific pending-action dictionary and turn counter without replacing the shared account's preferences or reports. A typed assistant or another login cannot confirm a voice proposal through its default pending state.
+The demo still uses a shared fictional account and network. Voice dialogue and pending proposals are separated per demo session. A `ContextVar` gives the existing Care tools a session-specific pending-action dictionary and turn counter without replacing the shared account's preferences or reports. A typed assistant or another login cannot confirm a voice proposal through its default pending state.
 
 A session lock serializes its turns and confirmations. Spoken confirmation must name the currently displayed action ID; it is handled against that exact session proposal. Editing a draft invalidates its old ID. Button confirmations and cancellations update the action memory too. Repeated request IDs return a copied cached result; using the same ID for different turn contents is rejected.
 
@@ -67,7 +67,7 @@ This is authorization for the demo's existing allowlisted account tools, not unr
 ## API and files
 
 - `GET /api/care/voice/memory`: authenticated restoration of recent messages and the current proposal.
-- `DELETE /api/care/voice/memory`: clear the current login's conversation and pending proposals.
+- `DELETE /api/care/voice/memory`: clear the current session's conversation and pending proposals.
 - `POST /api/care/voice/turn`: accepts text, current `action_id`, `request_id` and page. The legacy `history` field is accepted but ignored.
 - Existing confirmation/cancellation routes resolve voice proposals in the caller's conversation.
 
@@ -77,12 +77,12 @@ Implementation: `backend/app/voice_memory.py`, session integration in `backend/a
 
 `python -m pytest tests/test_voice_memory.py tests/test_voice_agent.py -q` checks reference resolution, revisions, read-back, scope isolation, cancellation, expiration, summaries, fresh tool calls, model context, exact-once retries and visible-proposal authorization.
 
-`node scripts/check_voice_memory_ui.js` checks the real browser/server flow on an isolated offline demo at `http://127.0.0.1:8021`. It resets demo state, submits fictional reports and mocks only speech delivery. Never point it at a demo whose state you want to preserve. Override `BASE_URL` and demo credentials as needed.
+`node scripts/check_voice_memory_ui.js` checks the real browser/server flow on an isolated offline demo at `http://127.0.0.1:8021`. It resets demo state, submits fictional reports and uses local speech where available or Text only. Never point it at a demo whose state you want to preserve. Override `BASE_URL` as needed; demo entry requires no credentials.
 
-The earlier audio, voice UI and customer-support checks remain applicable. Real microphone transcription accuracy and cloud latency remain dependent on the environment and providers.
+Current local-speech and no-login results are in the installation verification record; older audio results apply to the earlier provider. Real microphone transcription accuracy and cloud latency remain dependent on the environment and providers.
 
 
-### Local results (3 November 2026)
+### Historical local results (3 November 2026)
 
 - Full application regression run: **206 passed**, 617.06 seconds.
 - After the final setting-reference and non-reusable approval-ID refinements: **38 focused voice/memory Python checks passed**, 86.18 seconds.

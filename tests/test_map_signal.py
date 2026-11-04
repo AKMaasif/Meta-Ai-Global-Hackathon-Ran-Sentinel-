@@ -83,7 +83,7 @@ def test_customer_cannot_call_ops_endpoints(sentinel, monkeypatch):
     monkeypatch.setattr(main, "sentinel", sentinel)
     cl = TestClient(main.app)
     s = main.settings
-    assert cl.post("/api/login", json={"email": s.customer_email, "password": s.customer_password, "portal": "connect"}).status_code == 200
+    assert cl.post("/api/demo/start", json={"portal": "connect"}).status_code == 200
     for path in ("/api/state", "/api/cells/SEA-RAN-001", "/api/alarms", "/api/ledger"):
         assert cl.get(path).status_code == 401, path
     r = cl.get("/api/care/map", params={"place": "home"})

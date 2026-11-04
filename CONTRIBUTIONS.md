@@ -17,14 +17,14 @@ About 13,000 lines of Python, JavaScript and CSS, plus the documentation.
 | Safety | Nine fixed safety rules and the Evidence-to-Action Safety Ledger | `backend/app/safety.py`, `store.py` |
 | Radio change path | Open M-Plane style change packages with confirmed-commit and automatic rollback, against a simulated radio unit | `backend/app/mplane.py` |
 | Digital twin | What-if checks; client and training-data generator for Meta's Maveric | `backend/app/twin.py`, `maveric.py`, `scripts/maveric_setup.py` |
-| Meta model integration | Provider with fallback chain (Spark 1.3 → 1.2 → 1.1), SAM 3.1 photo analysis, Voice Transcribe, Muse Wonder, Gemini TTS | `backend/app/providers.py` |
+| Meta model integration | Provider with fallback chain (Spark 1.3 → 1.2 → 1.1), SAM 3.1 photo analysis, Voice Transcribe, Muse Wonder; installed local browser/OS speech | `backend/app/providers.py` |
 | FCC Part 4 check | User-minute tracking and a Regulatory Compliance desk | `backend/app/regulatory.py` |
 | Operations console | OSS-style console: overview, alarm monitor, cell explorer, incidents, approvals, ledger, model card, customer support desk | `frontend/ops/` |
 | Customer app | Northstar Connect: home, network, account, bill, alerts, outage credits, Care Concierge, voice agent, help center and support tickets | `frontend/connect/`, `backend/app/care.py`, `support.py` |
 | Voice conversation memory | Session-scoped dialogue, older context notes, issue and draft tracking, corrections, approval IDs, request retry protection and refresh restoration | `backend/app/voice_memory.py`, `frontend/connect/app.js` |
 | Live updates | In-place page patching and serial polling | `frontend/shared/ui.js` |
 | Security | Portal-bound sessions, login lockout, file upload checks | `backend/app/main.py` |
-| Tests | 207 pytest tests, four Playwright browser checks and a native Safari check | `tests/`, `scripts/check_*.js` |
+| Tests | 206 pytest tests, six Playwright browser scripts and a native Safari script (earlier hosted run) | `tests/`, `scripts/check_*.js` |
 | Documentation | README, docs/ guides, user manual and technical documentation PDFs, sample field-evidence files (drawn illustrations) | `docs/`, `samples/` |
 
 ## Not built for this project (used under their licences)
@@ -32,7 +32,6 @@ About 13,000 lines of Python, JavaScript and CSS, plus the documentation.
 | Component | Use | Licence |
 |---|---|---|
 | Meta Model API: Muse Spark 1.3/1.2/1.1, Muse Wonder 1.0, SAM 3.1, Muse Voice Transcribe 1.0 | The AI models, called over the API | Meta terms |
-| Google Gemini TTS | Spoken replies in the voice agent (Meta has no text-to-speech model) | Google terms |
 | Maveric (lf-connectivity) | RF digital twin; run separately in Docker, not included in this repo | MIT |
 | Open M-Plane (lf-connectivity) | Referenced for the change-package format; not included | MIT |
 | FastAPI, Uvicorn, NumPy, httpx, scikit-learn, OpenAI Python SDK, python-dotenv, pypdf | Python libraries installed from `requirements.txt` | MIT / BSD / Apache-2.0 |

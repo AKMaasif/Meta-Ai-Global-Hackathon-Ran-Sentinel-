@@ -1,8 +1,10 @@
 # RAN Sentinel: guided demo
 
-A three-minute walkthrough of the main features. Use a browser window of about 1440×900 at 100% zoom. Start the app with `start.bat`, with a Meta key in `.env`, and sign in to the console first. Open the customer app in a second tab. Times are a guide.
+A three-minute walkthrough of the main features. Use a browser window of about 1440×900 at 100% zoom. Start the app with `start.bat`, with a Meta key in `.env`, and choose **Explore engineer demo**. Open the customer app in a second tab and choose **Explore customer demo**. No demo credentials are needed. Times are a guide.
 
 ## Before you start
+
+The no-key sample-data demo can be run separately by following [Section 1 of the README](README.md#run-it-windows). For the submission recording, show actual Meta requests and responses in the model-call feed. Offline rules and recorded results do not demonstrate live model use. Spoken replies use installed local browser/OS voices; microphone transcription needs Meta access.
 
 - Restart the server so incident numbers start at RNS-2026-001.
 - In Demo controls, check that **Red-team the first plan** is on.
@@ -22,7 +24,7 @@ A three-minute walkthrough of the main features. Use a browser window of about 1
 | 2:00–2:20 | Second incident, Photos tab | Create a **Hardware fault** on SEA-RAN-020. When it routes to Field Operations, upload the site photo. | "Hardware goes to the field team. A technician's photo goes to SAM 3.1, which boxes the antenna, cable and connectors, and Spark reads it against the diagnosis." |
 | 2:20–2:35 | Demo controls, then Incidents | Set **Meta API: all models down**, create a third problem, show it escalating with a brief. Set the switch back to none. | "If Meta's models are unavailable, it falls back through Spark 1.2 and 1.1, then escalates to a person. Muse Wonder writes escalation briefs and the shift handover from the whole ledger." |
 | 2:35–2:50 | Customer app tab | Enter ZIP 98101. Ask "Is there an issue in 98101?" | "Customers see only confirmed, plain-language updates, filtered for internal details." |
-| 2:50–3:00 | Safety ledger | Scroll the ledger. | "Every step, from evidence to action, is in the Safety Ledger, and outages are tracked against FCC Part 4. RAN Sentinel: faster fixes that are proven safe first." |
+| 2:50–3:00 | Safety ledger | Scroll the ledger. | "Every step, from evidence to action, is in the Safety Ledger, and outages are tracked against FCC Part 4. RAN Sentinel: evidence-led investigation, checked proposals and engineer approval." |
 
 ## If something goes wrong
 

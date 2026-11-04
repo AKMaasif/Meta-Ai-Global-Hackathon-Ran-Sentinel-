@@ -1,10 +1,10 @@
 # Customer voice assistant
 
-The Northstar Connect assistant helps customers use the app through a conversation. Ask it to check a connection, open a page or prepare a complaint, then use follow-ups such as “report that,” “change it to home” or “read it back.” It remembers the topic within the current signed-in session while checking live demo data for current answers.
+The Northstar Connect assistant helps customers use the app through a conversation. Ask it to check a connection, open a page or prepare a complaint, then use follow-ups such as “report that,” “change it to home” or “read it back.” It remembers the topic within the current demo session while checking live demo data for current answers.
 
 ## From your microphone to a spoken reply
 
-**Your voice → Meta transcription → conversation memory and Muse Spark/tools → customer review when needed → Gemini Kore speech → browser playback.**
+**Your voice → Meta transcription → conversation memory and Muse Spark/tools → customer review when needed → installed local browser/OS speech.**
 
 | Part | Model or component | Responsibility |
 |---|---|---|
@@ -13,15 +13,15 @@ The Northstar Connect assistant helps customers use the app through a conversati
 | Understand | Muse Spark 1.3, with 1.2 as backup | Answers broader questions and uses tools for the customer's account and published network updates. |
 | Keep context | Server-side `VoiceConversation` | Resolves simple follow-ups, remembers drafts and outcomes, and supplies recent dialogue and older notes to Spark. |
 | Apply an action | Existing Care tools and confirmation checks | Opens pages and prepares changes. A complaint, credit or setting change waits for customer approval. |
-| Speak | Gemini 3.8 Flash-Lite TTS; Gemini 3.8 Flash TTS as backup; Kore voice | Generates one complete spoken reply. The browser voice is a fallback if Gemini is unavailable. |
+| Speak | Installed local English browser/OS voice | Reads one complete answer on the device. Remote voices are excluded; written replies remain available. |
 
 The browser applies navigation or draft updates before speaking the answer. During playback the microphone is off, so the assistant does not transcribe itself. Tap the orb to interrupt and start another listening turn. Closing the sheet stops playback and prevents a late response from navigating the app.
 
-This is a turn-based pipeline rather than a streaming speech-to-speech model. Simple commands and remembered references avoid an extra reasoning-model call; broader questions and cloud speech generation can still take several seconds.
+This is a turn-based pipeline rather than a streaming speech-to-speech model. Simple commands and remembered references avoid an extra reasoning-model call; broader questions can still take several seconds for live Meta reasoning.
 
 ## What the assistant remembers
 
-Memory belongs to the authenticated customer login, not to a history array supplied by the browser.
+Memory belongs to the customer demo session, not to a history array supplied by the browser.
 
 | Data | Stored as | Why it is kept |
 |---|---|---|
@@ -34,7 +34,7 @@ Memory belongs to the authenticated customer login, not to a history array suppl
 
 These records live in server RAM. Refreshing the page restores the conversation and, on the report page, the draft's fields. Closing the assistant keeps the conversation. **New conversation**, logout, server restart or simulator reset clears the relevant voice context. After 30 minutes without use, the next access clears expired memory and pending approvals.
 
-Remembering a previous answer does not make it current information. Questions such as “is it still slow?” run fresh network tools. The demo uses one fictional customer account; separate login sessions have separate voice histories and pending approvals.
+Remembering a previous answer does not make it current information. Questions such as “is it still slow?” run fresh network tools. The demo uses one fictional customer account; separate demo sessions have separate voice histories and pending approvals.
 
 ## A conversation from start to finish
 
@@ -71,30 +71,32 @@ Setting changes work the same way. “Turn on Wi-Fi Calling” prepares a propos
 
 ## Speech playback
 
-Gemini generates the whole reply once, rather than separate clips for every sentence. The provider reads the returned audio format: WAV containers are decoded as WAV, while raw PCM uses its reported sample rate. Short fades soften clip boundaries without cutting off words. Interrupting cancels playback, releases audio resources and ignores stale responses.
+The browser reads the complete answer in one `SpeechSynthesisUtterance`. Only English voices explicitly reported as `localService: true` are offered. A local voice is selected when available; the Reply voice selector also offers Text only. The app never selects an online-only voice or sends reply text to a speech-generation service.
 
-Only the answer text goes to TTS; it can include details the customer provided. Stage directions are kept out of the transcript because Gemini 3.8 reads it verbatim. The original WAV-format defect and its verification are described in the [audio redesign report](VOICE_AGENT_REDESIGN.md).
+Voice lists can arrive asynchronously. Playback waits briefly for discovery, and cancellation also cancels that wait. Closing the assistant or interrupting settles the current playback promise and prevents stale speech from starting. Errors, unavailable voices and unsupported browsers leave the written answer visible. The microphone stays off while the assistant speaks. Voice sound and availability differ between computers; the previous cloud voice is not part of this build.
 
 ## Setup and verification
 
-Add your own `MODEL_API_KEY` and `GOOGLE_API_KEY` to `.env`, then restart the app. The default speech settings are `TTS_MODEL=gemini-3.8-flash-lite-tts`, `TTS_FALLBACK_MODEL=gemini-3.8-flash-tts` and `TTS_VOICE=Kore`. Keys stay on the server. Without Meta access, typed requests use the offline rules engine; without Google access, the browser can read replies aloud.
+Start the app and choose Explore customer demo; no credentials are needed. Without Meta access, type into Ask to exercise offline tools, memory and approvals. Installed local voices can read those replies without a speech key. For live microphone transcription and broader Meta reasoning, configure `MODEL_API_KEY` privately in `.env` and restart.
 
-- `python scripts/check_voice_agent.py` checks a scripted conversation and Gemini speech through the configured providers. `--audio path.wav` also checks transcription. These calls can consume API credits.
+- `python scripts/check_voice_agent.py` checks a scripted conversation using the configured Meta provider or offline rules. `--audio path.wav` also checks Meta transcription. Live Meta calls can consume credits; this script does not test speaker output.
+- `node scripts/check_local_speech.js` verifies local-only selection, delayed voice discovery, interruption, Text only and error fallbacks with synthetic browser voices.
 - `python -m pytest tests/test_voice_memory.py tests/test_voice_agent.py -q` checks voice and memory behavior offline.
 - `node scripts/check_voice_ui.js` and `node scripts/check_voice_memory_ui.js` check browser behavior on an isolated offline demo. They create fictional reports and change settings; see the [memory verification instructions](VOICE_CONVERSATION_MEMORY.md#verification).
 - On macOS, `python scripts/check_safari_ui.py` checks the actual Safari browser, including synthetic audio recording and WAV conversion. It needs the optional `selenium` package and Apple's Safari remote automation enabled. The [verification record](LOCAL_INSTALL_VERIFICATION.md) links the successful hosted run.
 
-Live Meta follow-ups, speech generation and a transcription round trip have been checked. Recognition accuracy and complete conversation latency on real customer devices have not been benchmarked. Memory is bounded and session-based, rather than permanent recall.
+Previous live Meta follow-ups and transcription checks are recorded separately. Current local speech needs a fresh human listening check; browser tests use synthetic voices. Recognition accuracy and complete conversation latency on real customer devices have not been benchmarked. Memory is bounded and session-based, rather than permanent recall.
 
 ## Where the code lives
 
 | File | Role |
 |---|---|
 | `frontend/shared/ui.js` | Microphone recording, silence detection and WAV conversion |
+| `frontend/shared/local-speech.js` | Local voice discovery, speech, cancellation and text fallback |
 | `frontend/connect/app.js` | Voice sheet, transcript, draft controls, restoration, navigation and playback |
-| `backend/app/main.py` | Authenticated voice, memory, speech and confirmation endpoints |
+| `backend/app/main.py` | Demo sessions, voice, memory and confirmation endpoints |
 | `backend/app/voice_memory.py` | Conversation state, references, corrections, expiry, session isolation and retry handling |
 | `backend/app/care.py` | Customer tools, scoped pending actions and the Muse Spark conversation loop |
-| `backend/app/providers.py` | Meta transcription/model calls and Gemini speech/audio decoding |
+| `backend/app/providers.py` | Meta transcription/model calls |
 
 The [conversation memory design](VOICE_CONVERSATION_MEMORY.md) documents the state boundaries, API and recorded test results in more detail.

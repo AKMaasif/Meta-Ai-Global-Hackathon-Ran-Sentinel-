@@ -8,6 +8,7 @@ on:
       - 'frontend/**'
       - 'tests/**'
       - 'scripts/check_local_install.py'
+      - 'scripts/check_local_speech.js'
       - 'requirements.txt'
       - 'run.py'
   pull_request:
@@ -17,6 +18,7 @@ on:
       - 'frontend/**'
       - 'tests/**'
       - 'scripts/check_local_install.py'
+      - 'scripts/check_local_speech.js'
       - 'requirements.txt'
       - 'run.py'
   workflow_dispatch:
@@ -35,7 +37,6 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     env:
       MODEL_API_KEY: ''
-      GOOGLE_API_KEY: ''
       FIREWORKS_API_KEY: ''
       MAVERIC_URL: ''
     steps:
@@ -57,3 +58,8 @@ jobs:
         run: .venv/bin/python scripts/check_local_install.py
       - name: Run the application tests
         run: .venv/bin/python -m pytest tests -q
+      - name: Check local speech behavior in Chromium
+        run: |
+          npm install --no-save --ignore-scripts playwright
+          npx playwright install --with-deps chromium
+          node scripts/check_local_speech.js
